@@ -1,6 +1,6 @@
 use axum::{
     extract::{Json, State},
-    http::{self, header::HeaderMap}, response::IntoResponse,
+    http::header::HeaderMap, response::IntoResponse,
     http::StatusCode
 };
 use core::panic;
@@ -33,7 +33,7 @@ pub async fn chat_completions(
     let response = send_request(state.http_client.clone(), auth_token, &request_body).await;
     match response {
         Ok(response) => into_response(response),
-        Err(error) => to_failed_response(error)
+        Err(error) => into_error_response(error),
     }
 }
 
@@ -65,6 +65,12 @@ async fn send_request(
 }
 
 async fn into_response(response: reqwest::Response) -> impl IntoResponse {
-    let response_body = response.json<Value>().await?;
-    (StatusCode::OK, response_body)
+     match response.json::<Value>().await {
+        Ok(response_body) => (StatusCode::OK, Json(response_body).into_response()),
+        Err(err) => into_error_response(err)
+     }
+}
+
+fn into_error_response<T: std::error::Error>(error: T) -> impl IntoResponse {
+    (StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
 }
