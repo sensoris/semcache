@@ -5,7 +5,6 @@ use axum::{
     response::IntoResponse,
     response::Response,
 };
-use core::panic;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
@@ -54,6 +53,7 @@ impl IntoResponse for CompletionResponse {
 pub enum CompletionError {
     Upstream(reqwest::Error),
     InvalidJson(serde_json::Error),
+    InputValidation(String),
 }
 
 impl From<reqwest::Error> for CompletionError {
@@ -71,25 +71,31 @@ impl From<serde_json::Error> for CompletionError {
 impl IntoResponse for CompletionError {
     fn into_response(self) -> Response {
         match self {
-            Self::Upstream(reqwest_err) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!(
-                    "Error when calling upstream: {}, with status code: {}",
+            Self::Upstream(reqwest_err) => {
+                eprintln!(
+                    "Error: {} when calling upstream: {}, with status code: {}",
                     reqwest_err.to_string(),
+                    reqwest_err
+                        .url()
+                        .map(|url| url.as_str())
+                        .get_or_insert("NO_UPSTREAM"),
                     reqwest_err
                         .status()
                         .get_or_insert(reqwest::StatusCode::INTERNAL_SERVER_ERROR)
-                ),
-            )
-                .into_response(),
+                );
+                (StatusCode::INTERNAL_SERVER_ERROR, "Failed to call upstream").into_response()
+            }
             Self::InvalidJson(serde_error) => {
                 eprintln!("error parsing json {}", serde_error);
-
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "Failed to parse json from upstream",
                 )
                     .into_response()
+            }
+            Self::InputValidation(message) => {
+                eprint!("Failed to parse input, {}", message);
+                (StatusCode::BAD_REQUEST, message).into_response()
             }
         }
     }
@@ -100,23 +106,27 @@ pub async fn chat_completions(
     headers: HeaderMap,
     Json(request_body): Json<CompletionRequest>,
 ) -> Result<CompletionResponse, CompletionError> {
-    let auth_token = extract_auth_token(&headers);
+    let auth_token = extract_auth_token(&headers)?;
     let reqwest_response =
         send_request(state.http_client.clone(), auth_token, &request_body).await?;
     let response = CompletionResponse::from_reqwest(reqwest_response).await?;
     Ok(response)
 }
 
-fn extract_auth_token(headers: &HeaderMap) -> &str {
+fn extract_auth_token(headers: &HeaderMap) -> Result<&str, CompletionError> {
     // extract auth token
-    let auth_token = match headers.get(axum::http::header::AUTHORIZATION) {
-        Some(token) => token,
-        None => panic!("couldnt find auth token"),
-    };
-    let auth_token = auth_token
+    headers
+        .get(axum::http::header::AUTHORIZATION)
+        .ok_or(CompletionError::InputValidation(String::from(
+            "Missing authorization header",
+        )))?
         .to_str()
-        .expect("auth_token was not a valid string");
-    auth_token
+        .map_err(|error| {
+            CompletionError::InputValidation(format!(
+                "authorization header could not be parsed as a string, {}",
+                error
+            ))
+        })
 }
 
 async fn send_request(
