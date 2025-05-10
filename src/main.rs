@@ -12,7 +12,7 @@ async fn main() {
     // build our application with a single route
     let app = Router::new()
         .route("/", get(|| async { "Hello, World!" }))
-        .route("/chat/completions", post(endpoints::chat::chat_completions))
+        .route("/chat/completions", post(endpoints::chat::handler::completions))
         .with_state(shared_state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await.unwrap();
