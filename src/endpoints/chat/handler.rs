@@ -5,11 +5,15 @@ use axum::{
 use std::sync::Arc;
 
 use crate::app_state::AppState;
+use url::Url;
 
 use super::{
     dto::{CompletionRequest, CompletionResponse},
     errors::CompletionError,
 };
+
+// CONSTANTS
+const PROXY_UPSTREAM_HEADER: &'static str = "X-LLM-PROXY-UPSTREAM";
 
 pub async fn completions(
     State(state): State<Arc<AppState>>,
@@ -17,8 +21,8 @@ pub async fn completions(
     Json(request_body): Json<CompletionRequest>,
 ) -> Result<CompletionResponse, CompletionError> {
     let auth_token = extract_auth_token(&headers)?;
-    let reqwest_response =
-        send_request(state, auth_token, &request_body).await?;
+    let upstream_url = extract_proxy_upstream(&headers)?;
+    let reqwest_response = send_request(state, auth_token, upstream_url, request_body).await?;
     let response = CompletionResponse::from_reqwest(reqwest_response).await?;
     Ok(response)
 }
@@ -39,13 +43,35 @@ fn extract_auth_token(headers: &HeaderMap) -> Result<&str, CompletionError> {
         })
 }
 
+fn extract_proxy_upstream(headers: &HeaderMap) -> Result<Url, CompletionError> {
+    let raw = headers.get(PROXY_UPSTREAM_HEADER).ok_or_else(|| {
+        CompletionError::InputValidation(format!("Missing `{}` header", PROXY_UPSTREAM_HEADER))
+    })?;
+
+    let url_str = raw.to_str().map_err(|e| {
+        CompletionError::InputValidation(format!(
+            "`{}` header is not valid UTF-8: {}",
+            PROXY_UPSTREAM_HEADER, e
+        ))
+    })?;
+
+    Url::parse(url_str).map_err(|e| {
+        CompletionError::InputValidation(format!(
+            "`{}` header is not a valid URL: {}",
+            PROXY_UPSTREAM_HEADER, e
+        ))
+    })
+}
+
 async fn send_request(
     state: Arc<AppState>,
     auth_token: &str,
-    request_body: &CompletionRequest,
+    upstream_url: Url,
+    request_body: CompletionRequest,
 ) -> Result<reqwest::Response, reqwest::Error> {
-    let response = state.http_client
-        .post("https://api.openai.com/v1/chat/completions")
+    let response = state
+        .http_client
+        .post(upstream_url)
         .header(reqwest::header::AUTHORIZATION, auth_token)
         .header(reqwest::header::CONTENT_TYPE, "application/json")
         .json(&request_body)

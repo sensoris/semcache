@@ -7,7 +7,6 @@ use super::errors::CompletionError;
 
 // DTO's for the chat handler
 
-
 // Request type
 #[derive(Deserialize, Serialize, Debug)]
 pub struct CompletionRequest {
