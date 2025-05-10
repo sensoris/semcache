@@ -109,7 +109,7 @@ pub async fn chat_completions(
 
 fn extract_auth_token(headers: &HeaderMap) -> &str {
     // extract auth token
-    let auth_token = match headers.get("Authorization") {
+    let auth_token = match headers.get(axum::http::header::AUTHORIZATION) {
         Some(token) => token,
         None => panic!("couldnt find auth token"),
     };
@@ -126,7 +126,7 @@ async fn send_request(
 ) -> Result<reqwest::Response, reqwest::Error> {
     let response = client
         .post("https://api.openai.com/v1/chat/completions")
-        .bearer_auth(auth_token)
+        .header(reqwest::header::AUTHORIZATION, auth_token)
         .header(reqwest::header::CONTENT_TYPE, "application/json")
         .json(&request_body)
         .send()
