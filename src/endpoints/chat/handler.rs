@@ -18,7 +18,7 @@ pub async fn completions(
 ) -> Result<CompletionResponse, CompletionError> {
     let auth_token = extract_auth_token(&headers)?;
     let reqwest_response =
-        send_request(state.http_client.clone(), auth_token, &request_body).await?;
+        send_request(state, auth_token, &request_body).await?;
     let response = CompletionResponse::from_reqwest(reqwest_response).await?;
     Ok(response)
 }
@@ -40,11 +40,11 @@ fn extract_auth_token(headers: &HeaderMap) -> Result<&str, CompletionError> {
 }
 
 async fn send_request(
-    client: reqwest::Client,
+    state: Arc<AppState>,
     auth_token: &str,
     request_body: &CompletionRequest,
 ) -> Result<reqwest::Response, reqwest::Error> {
-    let response = client
+    let response = state.http_client
         .post("https://api.openai.com/v1/chat/completions")
         .header(reqwest::header::AUTHORIZATION, auth_token)
         .header(reqwest::header::CONTENT_TYPE, "application/json")
