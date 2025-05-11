@@ -1,15 +1,15 @@
 mod app_state;
+mod embedding;
 mod endpoints;
+
 use app_state::AppState;
 use axum::{Router, routing::get, routing::post};
 use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
-    // initialize shared state
     let shared_state = Arc::new(AppState::new());
 
-    // build our application with a single route
     let app = Router::new()
         .route("/", get(|| async { "Hello, World!" }))
         .route(
