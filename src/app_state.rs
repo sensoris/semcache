@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 pub struct AppState {
     pub http_client: Client,
-    pub embedding_service: Arc<dyn EmbeddingService>,
+    pub embedding_service: Arc<FastEmbedService>,
 }
 
 impl AppState {
