@@ -42,9 +42,7 @@ impl CompletionResponse {
 
     pub fn from_cache(saved_response: String) -> Result<Self, serde_json::Error> {
         let parsed = serde_json::from_str(&saved_response)?;
-        Ok(Self {
-            body: Json(parsed),
-        })
+        Ok(Self { body: Json(parsed) })
     }
 }
 

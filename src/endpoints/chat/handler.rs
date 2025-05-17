@@ -5,6 +5,7 @@ use axum::{
 use std::sync::Arc;
 
 use crate::app_state::AppState;
+use crate::metrics::CHAT_COMPLETIONS;
 use url::Url;
 
 use super::{
@@ -20,6 +21,8 @@ pub async fn completions(
     headers: HeaderMap,
     Json(request_body): Json<CompletionRequest>,
 ) -> Result<CompletionResponse, CompletionError> {
+    CHAT_COMPLETIONS.inc();
+
     let prompt = &request_body
         .messages
         .get(0)
