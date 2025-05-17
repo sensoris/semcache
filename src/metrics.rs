@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use lazy_static::lazy_static;
 use prometheus::{IntCounter, register_int_counter};
 use serde::{Deserialize, Serialize};
-use serde_json::{self, to_string};
+use serde_json::{self};
 use std::fs;
 use std::path::Path;
 use tokio::task;
@@ -92,7 +92,7 @@ fn history() -> Vec<MetricsResponse> {
     let history_content =
         fs::read_to_string(METRICS_HISTORY_PATH).unwrap_or_else(|_| "[]".to_string());
 
-    let mut history: Vec<MetricsResponse> =
+    let history: Vec<MetricsResponse> =
         serde_json::from_str(&history_content).unwrap_or_else(|_| Vec::new());
 
     history
