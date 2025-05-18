@@ -21,8 +21,17 @@ pub struct Message {
 }
 
 // Response type
+#[derive(Clone)]
 pub struct CompletionResponse {
     body: Json<Value>,
+}
+
+impl TryFrom<&CompletionResponse> for String {
+    type Error = serde_json::Error;
+
+    fn try_from(resp: &CompletionResponse) -> Result<Self, Self::Error> {
+        serde_json::to_string(&resp.body.0)
+    }
 }
 
 impl CompletionResponse {

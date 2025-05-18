@@ -1,4 +1,4 @@
-use std::{os::linux::raw, sync::atomic::{AtomicU32, Ordering}};
+use std::{os::linux::raw, sync::atomic::{AtomicU32, AtomicU64, Ordering}};
 
 use dashmap::DashMap;
 
@@ -51,14 +51,18 @@ impl Cache {
         // extract saved response using the index of the nearest vector
         let saved_response = maybe_idx.and_then(|idx| {
             self.id_to_response
-                .get(&idx)
+                .get(&idx.into())
                 .map(|response| response.clone())
         });
 
         Ok(saved_response)
     }
 
-    pub fn put(self: Self, prompt: String, response: String) {
+    pub fn put(&self, prompt: &String, response: String) -> Result<(), CacheError>{
+        let vec = self.embedding_service.embed(&prompt)?;
         let id = self.id_generator.fetch_add(1, Ordering::Relaxed);
+        self.semantic_store.put(id.into(), vec)?;
+        self.id_to_response.insert(id.into(), response);
+        Ok(())
     }
 }

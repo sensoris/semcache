@@ -15,7 +15,7 @@ pub enum CompletionError {
     InvalidResponse(#[from] serde_json::Error),
 
     #[error("Input validation error: {0}")]
-    InputValidation(String),
+    InvalidRequest(String),
 
     #[error("Error in caching layer: {0}")]
     InternalCacheError(#[from] CacheError),
@@ -46,7 +46,7 @@ impl IntoResponse for CompletionError {
                 )
                     .into_response()
             }
-            Self::InputValidation(message) => {
+            Self::InvalidRequest(message) => {
                 eprint!("Failed to parse input, {}", message);
                 (StatusCode::BAD_REQUEST, message).into_response()
             }
