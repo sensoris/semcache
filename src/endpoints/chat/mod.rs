@@ -1,3 +1,3 @@
 pub mod dto;
-pub mod errors;
+pub mod error;
 pub mod handler;

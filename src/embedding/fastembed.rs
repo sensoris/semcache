@@ -4,6 +4,7 @@ use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
 
 pub struct FastEmbedService {
     text_embedding: TextEmbedding,
+    model_name: EmbeddingModel,
 }
 
 impl FastEmbedService {
@@ -14,6 +15,17 @@ impl FastEmbedService {
 
         Self {
             text_embedding: text_embedding.unwrap(),
+            model_name: EmbeddingModel::AllMiniLML6V2,
+        }
+    }
+
+    pub fn get_dimensionality(&self) -> u32 {
+        match &self.model_name {
+            EmbeddingModel::AllMiniLML6V2 => 384,
+            _ => panic!(
+                "{}",
+                EmbeddingError::SetupError(String::from("Embedding model with unknown size",))
+            ),
         }
     }
 }
@@ -25,7 +37,8 @@ impl EmbeddingService for FastEmbedService {
             .embed(vec![text], None)
             .map_err(|e| EmbeddingError::GenerationError(e.to_string()))?;
 
-        // todo: is this the best way to return the vector embedding?
-        Ok(embeddings[0].clone())
+        // TODO normalize embeddings
+
+        Ok(embeddings.into_iter().next().unwrap())
     }
 }

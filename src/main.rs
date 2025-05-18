@@ -1,6 +1,7 @@
 mod app_state;
 mod embedding;
 mod endpoints;
+mod cache;
 
 use app_state::AppState;
 use axum::{Router, routing::get, routing::post};

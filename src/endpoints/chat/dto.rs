@@ -1,9 +1,9 @@
 use axum::{Json, response::IntoResponse, response::Response};
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Value, json};
 
-use super::errors::CompletionError;
+use super::error::CompletionError;
 
 // DTO's for the chat handler
 
@@ -29,6 +29,12 @@ impl CompletionResponse {
     pub async fn from_reqwest(res: reqwest::Response) -> Result<Self, CompletionError> {
         let body = res.json::<Value>().await?;
         Ok(Self { body: Json(body) })
+    }
+
+    pub fn from_cache(saved_response: String) -> Self {
+        Self {
+            body: Json(json!(saved_response)),
+        }
     }
 }
 

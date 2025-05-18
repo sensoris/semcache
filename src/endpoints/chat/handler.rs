@@ -9,7 +9,7 @@ use url::Url;
 
 use super::{
     dto::{CompletionRequest, CompletionResponse},
-    errors::CompletionError,
+    error::CompletionError,
 };
 
 // CONSTANTS
@@ -20,10 +20,22 @@ pub async fn completions(
     headers: HeaderMap,
     Json(request_body): Json<CompletionRequest>,
 ) -> Result<CompletionResponse, CompletionError> {
+    // return early if cache hit
+    if let Some(saved_response) = state
+        .cache
+        .get_if_present(&request_body.messages[0].content)?
+    {
+        return Ok(CompletionResponse::from_cache(saved_response));
+    };
+
+    // otherwise, send upstream request
     let auth_token = extract_auth_token(&headers)?;
     let upstream_url = extract_proxy_upstream(&headers)?;
     let reqwest_response = send_request(state, auth_token, upstream_url, request_body).await?;
     let response = CompletionResponse::from_reqwest(reqwest_response).await?;
+
+    // save returned response in cache
+
     Ok(response)
 }
 

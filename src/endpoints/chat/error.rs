@@ -1,23 +1,24 @@
 use axum::response::{IntoResponse, Response};
 use reqwest::StatusCode;
 
+use thiserror::Error;
+
+use crate::cache::error::CacheError;
+
 // Error type
+#[derive(Debug, Error)]
 pub enum CompletionError {
-    Upstream(reqwest::Error),
-    InvalidJson(serde_json::Error),
+    #[error("Upstream request failed: {0}")]
+    Upstream(#[from] reqwest::Error),
+
+    #[error("Invalid JSON: {0}")]
+    InvalidResponse(#[from] serde_json::Error),
+
+    #[error("Input validation error: {0}")]
     InputValidation(String),
-}
 
-impl From<reqwest::Error> for CompletionError {
-    fn from(err: reqwest::Error) -> Self {
-        CompletionError::Upstream(err)
-    }
-}
-
-impl From<serde_json::Error> for CompletionError {
-    fn from(err: serde_json::Error) -> Self {
-        CompletionError::InvalidJson(err)
-    }
+    #[error("Error in caching layer: {0}")]
+    InternalCacheError(#[from] CacheError),
 }
 
 impl IntoResponse for CompletionError {
@@ -37,7 +38,7 @@ impl IntoResponse for CompletionError {
                 );
                 (StatusCode::INTERNAL_SERVER_ERROR, "Failed to call upstream").into_response()
             }
-            Self::InvalidJson(serde_error) => {
+            Self::InvalidResponse(serde_error) => {
                 eprintln!("error parsing json {}", serde_error);
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
@@ -48,6 +49,10 @@ impl IntoResponse for CompletionError {
             Self::InputValidation(message) => {
                 eprint!("Failed to parse input, {}", message);
                 (StatusCode::BAD_REQUEST, message).into_response()
+            }
+            Self::InternalCacheError(internal_errror) => {
+                eprint!("Internal caching error: {}", internal_errror);
+                (StatusCode::INTERNAL_SERVER_ERROR, "Something went wrong!").into_response()
             }
         }
     }
