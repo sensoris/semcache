@@ -1,4 +1,7 @@
-use std::{os::linux::raw, sync::atomic::{AtomicU32, AtomicU64, Ordering}};
+use std::{
+    os::linux::raw,
+    sync::atomic::{AtomicU32, AtomicU64, Ordering},
+};
 
 use dashmap::DashMap;
 
@@ -58,7 +61,7 @@ impl Cache {
         Ok(saved_response)
     }
 
-    pub fn put(&self, prompt: &String, response: String) -> Result<(), CacheError>{
+    pub fn put(&self, prompt: &String, response: String) -> Result<(), CacheError> {
         let vec = self.embedding_service.embed(&prompt)?;
         let id = self.id_generator.fetch_add(1, Ordering::Relaxed);
         self.semantic_store.put(id.into(), vec)?;
