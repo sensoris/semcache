@@ -1,4 +1,4 @@
-use std::os::linux::raw;
+use std::{os::linux::raw, sync::atomic::{AtomicU32, Ordering}};
 
 use dashmap::DashMap;
 
@@ -12,6 +12,7 @@ pub struct Cache {
     similarity_threshold: f32,
     id_to_response: DashMap<u64, String>,
     semantic_store: SemanticStore,
+    id_generator: AtomicU32,
 }
 
 impl Cache {
@@ -19,12 +20,14 @@ impl Cache {
         let dimensionality = embedding_service.get_dimensionality();
         let id_to_response = DashMap::new();
         let semantic_store = SemanticStore::new(dimensionality);
+        let id_generator = AtomicU32::new(0);
         Self {
             embedding_service,
             dimensionality,
             similarity_threshold,
             id_to_response,
             semantic_store,
+            id_generator,
         }
     }
 
@@ -55,5 +58,7 @@ impl Cache {
         Ok(saved_response)
     }
 
-    pub fn put(self: Self, prompt: String, response: String) {}
+    pub fn put(self: Self, prompt: String, response: String) {
+        let id = self.id_generator.fetch_add(1, Ordering::Relaxed);
+    }
 }
