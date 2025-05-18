@@ -37,8 +37,6 @@ impl EmbeddingService for FastEmbedService {
             .embed(vec![text], None)
             .map_err(|e| EmbeddingError::GenerationError(e.to_string()))?;
 
-        // TODO normalize embeddings
-
         Ok(embeddings.into_iter().next().unwrap())
     }
 }
