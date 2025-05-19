@@ -40,10 +40,11 @@ impl CompletionResponse {
         Ok(Self { body: Json(body) })
     }
 
-    pub fn from_cache(saved_response: String) -> Self {
-        Self {
-            body: Json(json!(saved_response)),
-        }
+    pub fn from_cache(saved_response: String) -> Result<Self, serde_json::Error> {
+        let parsed = serde_json::from_str(&saved_response)?;
+        Ok(Self {
+            body: Json(parsed),
+        })
     }
 }
 

@@ -17,6 +17,8 @@ pub struct Cache {
 
 impl Cache {
     pub fn new(embedding_service: FastEmbedService, similarity_threshold: f32) -> Self {
+        assert!(similarity_threshold >= -1.0 && similarity_threshold <= 1.0,
+                "similarity_threshold must be between -1.0 and 1.0");
         let dimensionality = embedding_service.get_dimensionality();
         let id_to_response = DashMap::new();
         let semantic_store = SemanticStore::new(dimensionality);

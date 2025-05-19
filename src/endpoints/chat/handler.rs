@@ -31,7 +31,7 @@ pub async fn completions(
     // return early if cache hit
     if let Some(saved_response) = state.cache.get_if_present(&prompt)? {
         println!("CACHE HIT");
-        return Ok(CompletionResponse::from_cache(saved_response));
+        return Ok(CompletionResponse::from_cache(saved_response)?);
     };
 
     println!("CACHE_MISS");
