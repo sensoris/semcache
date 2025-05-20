@@ -17,8 +17,7 @@ const METRICS_HISTORY_PATH: &str = "assets/metrics_history.json";
 // https://github.com/tikv/rust-prometheus/blob/master/examples/example_int_metrics.rs
 // https://www.reddit.com/r/rust/comments/1iisfzg/lazycell_vs_lazylock_vs_oncecell_vs_oncelock_vs/
 pub static CHAT_COMPLETIONS: LazyLock<IntCounter> = LazyLock::new(|| {
-    register_int_counter!("incoming_requests", "Incoming Requests")
-        .expect("metric can be created")
+    register_int_counter!("incoming_requests", "Incoming Requests").expect("metric can be created")
 });
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
