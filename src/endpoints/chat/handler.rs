@@ -22,7 +22,7 @@ pub async fn completions(
     Json(request_body): Json<CompletionRequest>,
 ) -> Result<CompletionResponse, CompletionError> {
     CHAT_COMPLETIONS.inc();
-    
+
     let prompt = &request_body
         .messages
         .get(0)
