@@ -1,10 +1,10 @@
 use chrono::{DateTime, Utc};
-use lazy_static::lazy_static;
 use prometheus::{IntCounter, register_int_counter};
 use serde::{Deserialize, Serialize};
 use serde_json::{self};
 use std::fs;
 use std::path::Path;
+use std::sync::LazyLock;
 use tokio::task;
 use tokio::time::{self, Duration};
 
@@ -16,11 +16,10 @@ const METRICS_HISTORY_PATH: &str = "assets/metrics_history.json";
 // used lazy_static and works smoothly
 // https://github.com/tikv/rust-prometheus/blob/master/examples/example_int_metrics.rs
 // https://www.reddit.com/r/rust/comments/1iisfzg/lazycell_vs_lazylock_vs_oncecell_vs_oncelock_vs/
-lazy_static! {
-    pub static ref CHAT_COMPLETIONS: IntCounter =
-        register_int_counter!("incoming_requests", "Incoming Requests")
-            .expect("metric can be created");
-}
+pub static CHAT_COMPLETIONS: LazyLock<IntCounter> = LazyLock::new(|| {
+    register_int_counter!("incoming_requests", "Incoming Requests")
+        .expect("metric can be created")
+});
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 #[serde(rename_all = "lowercase")]
