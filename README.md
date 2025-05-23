@@ -69,3 +69,15 @@ sudo docker build -f Dockerfile -t semcache-rs .
 ```shell
 sudo docker build -f Dockerfile.test -t semcache-test .
 ```
+
+## Scripts
+
+Easy way to send request:
+
+```shell
+➜ python scripts/request.py openai $API_KEY "What is the capital of France?"
+
+⏱️  Request completed in 894ms
+==================================================
+The capital of France is Paris.
+```
