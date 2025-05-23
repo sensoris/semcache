@@ -1,13 +1,13 @@
-use crate::{
-    cache::{cache::Cache, semantic_store::flat_ip_faiss_store::FlatIPFaissStore},
-    embedding::fastembed::FastEmbedService,
-};
-use dashmap::DashMap;
+use crate::cache::cache::{Cache, EvictionPolicy};
+use crate::cache::response_store::ResponseStore;
+use crate::cache::semantic_store::flat_ip_faiss_store::FlatIPFaissStore;
+use crate::embedding::fastembed::FastEmbedService;
 use reqwest::Client;
 
 pub struct AppState {
     pub http_client: Client,
-    pub cache: Cache,
+    // todo we should probably use base64 or something that isn't string here
+    pub cache: Cache<String>,
 }
 
 impl AppState {
@@ -19,8 +19,9 @@ impl AppState {
             cache: Cache::new(
                 Box::new(embedding_service),
                 Box::new(semantic_store),
-                DashMap::new(),
+                ResponseStore::new(),
                 0.9,
+                EvictionPolicy::EntryLimit(4),
             ),
         }
     }

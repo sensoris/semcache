@@ -1,7 +1,7 @@
 use axum::{Json, response::IntoResponse, response::Response};
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::Value;
 
 use super::error::CompletionError;
 
