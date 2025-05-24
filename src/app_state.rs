@@ -1,4 +1,7 @@
-use crate::{cache::{cache::Cache, semantic_store::faiss_store::FaissStore}, embedding::{self, fastembed::FastEmbedService}};
+use crate::{
+    cache::{cache::Cache, semantic_store::faiss_store::FaissStore},
+    embedding::fastembed::FastEmbedService,
+};
 use reqwest::Client;
 
 pub struct AppState {
@@ -8,11 +11,11 @@ pub struct AppState {
 
 impl AppState {
     pub fn new() -> Self {
-            let embedding_service = FastEmbedService::new();
-            let semantic_store = FaissStore::new(embedding_service.get_dimensionality());
+        let embedding_service = FastEmbedService::new();
+        let semantic_store = FaissStore::new(embedding_service.get_dimensionality());
         Self {
             http_client: Client::new(),
-            cache: Cache::new(embedding_service, Box::new(semantic_store), 0.9),
+            cache: Cache::new(Box::new(embedding_service), Box::new(semantic_store), 0.9),
         }
     }
 }
