@@ -1,6 +1,5 @@
-use crate::{cache::cache::Cache, embedding::fastembed::FastEmbedService};
+use crate::{cache::{cache::Cache, semantic_store::faiss_store::FaissStore}, embedding::{self, fastembed::FastEmbedService}};
 use reqwest::Client;
-use std::sync::Arc;
 
 pub struct AppState {
     pub http_client: Client,
@@ -9,9 +8,11 @@ pub struct AppState {
 
 impl AppState {
     pub fn new() -> Self {
+            let embedding_service = FastEmbedService::new();
+            let semantic_store = FaissStore::new(embedding_service.get_dimensionality());
         Self {
             http_client: Client::new(),
-            cache: Cache::new(FastEmbedService::new(), 0.9),
+            cache: Cache::new(embedding_service, Box::new(semantic_store), 0.9),
         }
     }
 }

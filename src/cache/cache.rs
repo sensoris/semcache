@@ -4,30 +4,27 @@ use dashmap::DashMap;
 
 use crate::embedding::{fastembed::FastEmbedService, service::EmbeddingService};
 
-use super::{error::CacheError, semantic_store::SemanticStore};
+use super::{error::CacheError};
+use super::semantic_store::semantic_store::SemanticStore;
 
 pub struct Cache {
     embedding_service: FastEmbedService,
-    dimensionality: u32,
     similarity_threshold: f32,
     id_to_response: DashMap<u64, String>,
-    semantic_store: SemanticStore,
+    semantic_store: Box<dyn SemanticStore>,
     id_generator: AtomicU32,
 }
 
 impl Cache {
-    pub fn new(embedding_service: FastEmbedService, similarity_threshold: f32) -> Self {
+    pub fn new(embedding_service: FastEmbedService, semantic_store: Box<dyn SemanticStore>, similarity_threshold: f32) -> Self {
         assert!(
             similarity_threshold >= -1.0 && similarity_threshold <= 1.0,
             "similarity_threshold must be between -1.0 and 1.0"
         );
-        let dimensionality = embedding_service.get_dimensionality();
         let id_to_response = DashMap::new();
-        let semantic_store = SemanticStore::new(dimensionality);
         let id_generator = AtomicU32::new(0);
         Self {
             embedding_service,
-            dimensionality,
             similarity_threshold,
             id_to_response,
             semantic_store,
@@ -68,5 +65,28 @@ impl Cache {
         self.semantic_store.put(id.into(), vec)?;
         self.id_to_response.insert(id.into(), response);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SemanticStore;
+
+    #[test]
+    fn get_should_return_most_similar() {
+        // given
+        let faiss_store = SemanticStore::new(3);
+        let vec1 = vec![0_f32, 1.0, 0.0];
+        let vec2 = vec![0_f32, 0.0, 1.0];
+        faiss_store.put(1, vec1).expect("failed to insert vectors");
+        faiss_store.put(2, vec2).expect("failed to insert vectors");
+
+        // when
+        let query = vec![0_f32, 0.99, 0.0];
+        let found = faiss_store.get(query, 1).expect("No vector found");
+
+        // then
+        assert_eq!(found.distances.len(), 1);
+        assert_eq!(found.labels[0].to_native(), 1);
     }
 }
