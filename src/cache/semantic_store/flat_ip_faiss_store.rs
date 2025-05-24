@@ -1,31 +1,32 @@
 use std::sync::RwLock;
 
+use crate::utils::linear_algebra::normalize;
+use faiss::selector::IdSelector;
 use faiss::{
     ConcurrentIndex, IdMap, Idx, Index,
     index::{SearchResult, flat::FlatIndexImpl},
 };
 
-use crate::utils::linear_algebra::normalize;
+use crate::cache::error::CacheError;
 
-use super::error::CacheError;
+use super::semantic_store::SemanticStore;
 
-pub struct SemanticStore {
-    dimensionality: u32,
+pub struct FlatIPFaissStore {
     faiss_store: RwLock<IdMap<FlatIndexImpl>>,
 }
 
-impl SemanticStore {
+const FAISS_ERROR: &'static str = "RwLock poisoned, faiss store might be corrupted, panicking";
+
+impl FlatIPFaissStore {
     pub fn new(dimensionality: u32) -> Self {
         let faiss_index = FlatIndexImpl::new_ip(dimensionality).unwrap();
         let id_map = IdMap::new(faiss_index).unwrap();
         let faiss_store = RwLock::new(id_map);
-        SemanticStore {
-            dimensionality,
-            faiss_store,
-        }
+        FlatIPFaissStore { faiss_store }
     }
-
-    pub fn get(&self, vec: Vec<f32>, top_k: usize) -> Result<SearchResult, CacheError> {
+}
+impl SemanticStore for FlatIPFaissStore {
+    fn get(&self, vec: Vec<f32>, top_k: usize) -> Result<SearchResult, CacheError> {
         let vec = normalize(vec);
         let read_guard = self
             .faiss_store
@@ -35,38 +36,48 @@ impl SemanticStore {
         Ok(result)
     }
 
-    pub fn put(&self, id: u32, vec: Vec<f32>) -> Result<(), CacheError> {
+    fn put(&self, id: u32, vec: Vec<f32>) -> Result<(), CacheError> {
         let vec = normalize(vec);
+        let id = Idx::new(id.into());
+        let mut write_guard = self.faiss_store.write().expect(FAISS_ERROR);
+        write_guard.add_with_ids(&vec, &vec![id])?;
+        Ok(())
+    }
+
+    fn delete(&self, id: u32) -> Result<(), CacheError> {
         let id = Idx::new(id.into());
         let mut write_guard = self
             .faiss_store
             .write()
             .expect("RwLock poisoned, faiss store might be corrupted, panicking");
-        write_guard.add_with_ids(&vec, &vec![id])?;
-        Ok(())
-    }
 
-    pub fn delete(idx: u32) {
-        todo!("semantic_store::delete not implemented")
+        let id_sel = IdSelector::batch(&[id]).ok().unwrap();
+
+        write_guard.remove_ids(&id_sel)?;
+        Ok(())
     }
 }
 
+// TODO: fix tests to work with FAISS, e.g with mocks? OR replace with someother vector db...
 #[cfg(test)]
 mod tests {
+
+    use crate::cache::semantic_store::flat_ip_faiss_store::FlatIPFaissStore;
+
     use super::SemanticStore;
 
     #[test]
     fn get_should_return_most_similar() {
         // given
-        let cache = SemanticStore::new(3);
+        let faiss_store = FlatIPFaissStore::new(3);
         let vec1 = vec![0_f32, 1.0, 0.0];
         let vec2 = vec![0_f32, 0.0, 1.0];
-        cache.put(1, vec1).expect("failed to insert vectors");
-        cache.put(2, vec2).expect("failed to insert vectors");
+        faiss_store.put(1, vec1).expect("failed to insert vectors");
+        faiss_store.put(2, vec2).expect("failed to insert vectors");
 
         // when
         let query = vec![0_f32, 0.99, 0.0];
-        let found = cache.get(query, 1).expect("No vector found");
+        let found = faiss_store.get(query, 1).expect("No vector found");
 
         // then
         assert_eq!(found.distances.len(), 1);
@@ -76,7 +87,7 @@ mod tests {
     #[test]
     fn get_with_identical_vector_should_return_same_vector() {
         // given
-        let cache = SemanticStore::new(3);
+        let cache = FlatIPFaissStore::new(3);
         let vec1 = vec![0_f32, 1.0, 0.0];
         cache.put(1, vec1).expect("failed to insert vectors");
 
