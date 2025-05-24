@@ -7,7 +7,7 @@ use faiss::{
     index::{SearchResult, flat::FlatIndexImpl},
 };
 
-use crate::{cache::error::CacheError, utils::linear_algebra::normalize};
+use crate::cache::error::CacheError;
 
 use super::semantic_store::SemanticStore;
 
@@ -44,7 +44,7 @@ impl SemanticStore for FlatIPFaissStore {
         Ok(())
     }
 
-    pub fn delete(&self, id: u32) -> Result<(), CacheError> {
+    fn delete(&self, id: u32) -> Result<(), CacheError> {
         let id = Idx::new(id.into());
         let mut write_guard = self
             .faiss_store
@@ -57,9 +57,6 @@ impl SemanticStore for FlatIPFaissStore {
         Ok(())
     }
 
-    fn delete(&self, id: u32) -> Result<(), CacheError> {
-        todo!("semantic_store::delete not implemented")
-    }
 }
 
 // TODO: fix tests to work with FAISS, e.g with mocks? OR replace with someother vector db...
