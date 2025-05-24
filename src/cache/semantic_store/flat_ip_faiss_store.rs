@@ -56,7 +56,6 @@ impl SemanticStore for FlatIPFaissStore {
         write_guard.remove_ids(&id_sel)?;
         Ok(())
     }
-
 }
 
 // TODO: fix tests to work with FAISS, e.g with mocks? OR replace with someother vector db...
