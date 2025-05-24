@@ -9,19 +9,19 @@ use crate::{cache::error::CacheError, utils::linear_algebra::normalize};
 
 use super::semantic_store::SemanticStore;
 
-pub struct FaissStore {
+pub struct FlatIPFaissStore {
     faiss_store: RwLock<IdMap<FlatIndexImpl>>,
 }
 
-impl FaissStore {
+impl FlatIPFaissStore {
     pub fn new(dimensionality: u32) -> Self {
         let faiss_index = FlatIndexImpl::new_ip(dimensionality).unwrap();
         let id_map = IdMap::new(faiss_index).unwrap();
         let faiss_store = RwLock::new(id_map);
-        FaissStore { faiss_store }
+        FlatIPFaissStore { faiss_store }
     }
 }
-impl SemanticStore for FaissStore {
+impl SemanticStore for FlatIPFaissStore {
     fn get(&self, vec: Vec<f32>, top_k: usize) -> Result<SearchResult, CacheError> {
         let vec = normalize(vec);
         let read_guard = self
@@ -51,14 +51,14 @@ impl SemanticStore for FaissStore {
 #[cfg(test)]
 mod tests {
 
-    use crate::cache::semantic_store::faiss_store::FaissStore;
+    use crate::cache::semantic_store::flat_ip_faiss_store::FlatIPFaissStore;
 
     use super::SemanticStore;
 
     #[test]
     fn get_should_return_most_similar() {
         // given
-        let faiss_store = FaissStore::new(3);
+        let faiss_store = FlatIPFaissStore::new(3);
         let vec1 = vec![0_f32, 1.0, 0.0];
         let vec2 = vec![0_f32, 0.0, 1.0];
         faiss_store.put(1, vec1).expect("failed to insert vectors");
@@ -76,7 +76,7 @@ mod tests {
     #[test]
     fn get_with_identical_vector_should_return_same_vector() {
         // given
-        let cache = FaissStore::new(3);
+        let cache = FlatIPFaissStore::new(3);
         let vec1 = vec![0_f32, 1.0, 0.0];
         cache.put(1, vec1).expect("failed to insert vectors");
 
