@@ -76,7 +76,7 @@ impl Cache {
 #[cfg(test)]
 mod tests {
     use dashmap::DashMap;
-    use faiss::{error::Error, index::SearchResult, Idx};
+    use faiss::{Idx, error::Error, index::SearchResult};
     use mockall::predicate::eq;
 
     use crate::{
@@ -283,11 +283,7 @@ mod tests {
         mock_semantic_store
             .expect_get()
             .with(eq(embedding), eq(TOP_K))
-            .return_once(|_, _| {
-                Err(CacheError::FaissRetrievalError(
-                    Error::ParameterName,
-                ))
-            });
+            .return_once(|_, _| Err(CacheError::FaissRetrievalError(Error::ParameterName)));
 
         let id_to_response = DashMap::new();
 
