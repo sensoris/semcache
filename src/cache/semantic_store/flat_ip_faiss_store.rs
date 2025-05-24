@@ -1,5 +1,7 @@
 use std::sync::RwLock;
 
+use crate::utils::linear_algebra::normalize;
+use faiss::selector::IdSelector;
 use faiss::{
     ConcurrentIndex, IdMap, Idx, Index,
     index::{SearchResult, flat::FlatIndexImpl},
@@ -12,6 +14,8 @@ use super::semantic_store::SemanticStore;
 pub struct FlatIPFaissStore {
     faiss_store: RwLock<IdMap<FlatIndexImpl>>,
 }
+
+const FAISS_ERROR: &'static str = "RwLock poisoned, faiss store might be corrupted, panicking";
 
 impl FlatIPFaissStore {
     pub fn new(dimensionality: u32) -> Self {
@@ -35,11 +39,21 @@ impl SemanticStore for FlatIPFaissStore {
     fn put(&self, id: u32, vec: Vec<f32>) -> Result<(), CacheError> {
         let vec = normalize(vec);
         let id = Idx::new(id.into());
+        let mut write_guard = self.faiss_store.write().expect(FAISS_ERROR);
+        write_guard.add_with_ids(&vec, &vec![id])?;
+        Ok(())
+    }
+
+    pub fn delete(&self, id: u32) -> Result<(), CacheError> {
+        let id = Idx::new(id.into());
         let mut write_guard = self
             .faiss_store
             .write()
             .expect("RwLock poisoned, faiss store might be corrupted, panicking");
-        write_guard.add_with_ids(&vec, &vec![id])?;
+
+        let id_sel = IdSelector::batch(&[id]).ok().unwrap();
+
+        write_guard.remove_ids(&id_sel)?;
         Ok(())
     }
 
@@ -48,6 +62,7 @@ impl SemanticStore for FlatIPFaissStore {
     }
 }
 
+// TODO: fix tests to work with FAISS, e.g with mocks? OR replace with someother vector db...
 #[cfg(test)]
 mod tests {
 
