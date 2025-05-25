@@ -1,0 +1,12 @@
+# Use your existing builder image with FAISS and Rust
+FROM faiss-base-image AS test-runner
+
+# Copy the project source code into the container
+WORKDIR /app
+COPY . .
+
+# Set LD_LIBRARY_PATH so FAISS is discoverable
+ENV LD_LIBRARY_PATH="/usr/local/lib"
+
+# Run cargo tests when the container is started
+ENTRYPOINT ["cargo", "test", "--all-features", "--", "--nocapture"]
