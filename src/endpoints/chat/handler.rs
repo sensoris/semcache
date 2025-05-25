@@ -35,7 +35,7 @@ pub async fn completions(
     let embedding = state.embedding_service.embed(&prompt)?;
 
     // return early if cache hit
-    if let Some(saved_response) = state.cache.get_if_present(&prompt)? {
+    if let Some(saved_response) = state.cache.get_if_present(&embedding)? {
         info!("CACHE HIT");
         return Ok(CompletionResponse::from_cache(saved_response)?);
     };

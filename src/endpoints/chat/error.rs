@@ -58,8 +58,8 @@ impl IntoResponse for CompletionError {
                 warn!("Internal caching error: {}", internal_errror);
                 (StatusCode::INTERNAL_SERVER_ERROR, "Something went wrong!").into_response()
             }
-            Self::InternalEmbeddingError(intenal_error) => {
-                warn!("Internal embedding error: {}", intenal_error);
+            Self::InternalEmbeddingError(internal_error) => {
+                warn!("Internal embedding error: {}", internal_error);
                 (StatusCode::INTERNAL_SERVER_ERROR, "Something went wrong!").into_response()
             }
         }
