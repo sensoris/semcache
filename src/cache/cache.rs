@@ -3,7 +3,6 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use super::error::CacheError;
 use super::semantic_store::semantic_store::SemanticStore;
 use crate::cache::response_store::ResponseStore;
-use crate::embedding::service::EmbeddingService;
 use faiss::index::SearchResult;
 use tracing::info;
 
@@ -17,7 +16,6 @@ pub enum EvictionPolicy {
 const TOP_K: usize = 1;
 
 pub struct Cache<T> {
-    embedding_service: Box<dyn EmbeddingService>,
     similarity_threshold: f32,
     response_store: ResponseStore<T>,
     semantic_store: Box<dyn SemanticStore>,
@@ -27,7 +25,6 @@ pub struct Cache<T> {
 
 impl<T: Clone + 'static> Cache<T> {
     pub fn new(
-        embedding_service: Box<dyn EmbeddingService>,
         semantic_store: Box<dyn SemanticStore>,
         response_store: ResponseStore<T>,
         similarity_threshold: f32,
@@ -41,7 +38,6 @@ impl<T: Clone + 'static> Cache<T> {
         let id_generator = AtomicU64::new(0);
 
         Self {
-            embedding_service,
             similarity_threshold,
             response_store,
             semantic_store,
@@ -50,12 +46,9 @@ impl<T: Clone + 'static> Cache<T> {
         }
     }
 
-    pub fn get_if_present(&self, prompt: &str) -> Result<Option<T>, CacheError> {
-        // generate query vector
-        let embedding = self.embedding_service.embed(prompt)?;
-
+    pub fn get_if_present(&self, embedding: &Vec<f32>) -> Result<Option<T>, CacheError> {
         // search semantic store for vectors similar to our query vector
-        let search_result = self.semantic_store.get(embedding, TOP_K)?;
+        let search_result = self.semantic_store.get(&embedding, TOP_K)?;
 
         // find idx of highest similarity stored value that is above similarity_threshold
         let id = self.find_nearest_id(&search_result);
@@ -66,13 +59,11 @@ impl<T: Clone + 'static> Cache<T> {
         Ok(cached_response)
     }
 
-    pub fn put(&self, prompt: &String, response: T) -> Result<(), CacheError> {
-        //Todo embedding should be outside of cache
-        let vec = self.embedding_service.embed(&prompt)?;
+    pub fn put(&self, embedding: Vec<f32>, response: T) -> Result<(), CacheError> {
         let id = self.id_generator.fetch_add(1, Ordering::Relaxed);
 
         self.response_store.put(id.into(), response);
-        self.semantic_store.put(id.into(), vec)?;
+        self.semantic_store.put(id.into(), embedding)?;
 
         // Evict entries if policy limits are exceeded
         // Todo is a while best way to do this? e.g release chunks of memory before checking
@@ -121,35 +112,21 @@ mod tests {
 
     use crate::cache::cache::EvictionPolicy;
     use crate::cache::response_store::ResponseStore;
-    use crate::{
-        cache::{
-            cache::{Cache, TOP_K},
-            error::CacheError,
-            semantic_store::semantic_store::MockSemanticStore,
-        },
-        embedding::service::MockEmbeddingService,
+    use crate::cache::{
+        cache::{Cache, TOP_K},
+        error::CacheError,
+        semantic_store::semantic_store::MockSemanticStore,
     };
 
     #[test]
     fn get_should_return_most_similar_when_multiple_search_result() {
-        let prompt = "give me the cache";
         let embedding = vec![0_f32, 1.0, 0.0];
         let saved_response = String::from("this is a saved response");
-
-        // given
-        let mut mock_embedding_service = MockEmbeddingService::new();
-        mock_embedding_service
-            .expect_embed()
-            .with(eq(prompt))
-            .return_once({
-                let embedding_clone = embedding.clone();
-                move |_| Ok(embedding_clone)
-            });
 
         let mut mock_semantic_store = MockSemanticStore::new();
         mock_semantic_store
             .expect_get()
-            .with(eq(embedding), eq(TOP_K))
+            .with(eq(embedding.clone()), eq(TOP_K))
             .return_once(|_, _| {
                 Ok(SearchResult {
                     distances: vec![0.8, 0.9, 0.91],
@@ -161,7 +138,6 @@ mod tests {
         response_store.put(2, saved_response.clone());
 
         let under_test = Cache::new(
-            Box::new(mock_embedding_service),
             Box::new(mock_semantic_store),
             response_store,
             0.9,
@@ -169,7 +145,7 @@ mod tests {
         );
 
         // when
-        let response = under_test.get_if_present(prompt).unwrap();
+        let response = under_test.get_if_present(&embedding).unwrap();
 
         // then
         assert_eq!(response.unwrap(), saved_response);
@@ -177,23 +153,13 @@ mod tests {
 
     #[test]
     fn get_should_return_empty_when_none_found() {
-        let prompt = "give me the cache";
         let embedding = vec![0_f32, 1.0, 0.0];
 
         // given
-        let mut mock_embedding_service = MockEmbeddingService::new();
-        mock_embedding_service
-            .expect_embed()
-            .with(eq(prompt))
-            .return_once({
-                let embedding_clone = embedding.clone();
-                move |_| Ok(embedding_clone)
-            });
-
         let mut mock_semantic_store = MockSemanticStore::new();
         mock_semantic_store
             .expect_get()
-            .with(eq(embedding), eq(TOP_K))
+            .with(eq(embedding.clone()), eq(TOP_K))
             .return_once(|_, _| {
                 Ok(SearchResult {
                     distances: vec![],
@@ -202,7 +168,6 @@ mod tests {
             });
 
         let under_test: Cache<String> = Cache::new(
-            Box::new(mock_embedding_service),
             Box::new(mock_semantic_store),
             ResponseStore::new(),
             0.9,
@@ -210,7 +175,7 @@ mod tests {
         );
 
         // when
-        let response = under_test.get_if_present(prompt).unwrap();
+        let response = under_test.get_if_present(&embedding).unwrap();
 
         // then
         assert!(match response {
@@ -221,19 +186,10 @@ mod tests {
 
     #[test]
     fn put_should_update_semantic_store_and_insert() {
-        let prompt = String::from("index me");
         let embedding = vec![0.1, 0.2, 0.3];
         let response = String::from("stored response");
 
         // given
-        let mut mock_embed = MockEmbeddingService::new();
-        mock_embed
-            .expect_embed()
-            .with(eq(prompt.clone()))
-            .return_once({
-                let embedding = embedding.clone();
-                move |_| Ok(embedding)
-            });
 
         let mut mock_store = MockSemanticStore::new();
         mock_store
@@ -244,7 +200,6 @@ mod tests {
         let response_store = ResponseStore::new();
 
         let cache = Cache::new(
-            Box::new(mock_embed),
             Box::new(mock_store),
             response_store,
             0.9,
@@ -252,7 +207,7 @@ mod tests {
         );
 
         // when
-        let result = cache.put(&prompt, response.clone());
+        let result = cache.put(embedding, response.clone());
 
         // then
         assert!(result.is_ok());
@@ -263,24 +218,13 @@ mod tests {
 
     #[test]
     fn get_should_filter_out_low_similarity_results() {
-        let prompt = "low similarity test";
         let embedding = vec![0.1, 0.2, 0.3];
 
         // given
-
-        let mut mock_embedding_service = MockEmbeddingService::new();
-        mock_embedding_service
-            .expect_embed()
-            .with(eq(prompt))
-            .return_once({
-                let embedding = embedding.clone();
-                move |_| Ok(embedding)
-            });
-
         let mut mock_semantic_store = MockSemanticStore::new();
         mock_semantic_store
             .expect_get()
-            .with(eq(embedding), eq(TOP_K))
+            .with(eq(embedding.clone()), eq(TOP_K))
             .return_once(|_, _| {
                 Ok(SearchResult {
                     distances: vec![0.4, 0.5],
@@ -289,7 +233,6 @@ mod tests {
             });
 
         let under_test: Cache<String> = Cache::new(
-            Box::new(mock_embedding_service),
             Box::new(mock_semantic_store),
             ResponseStore::new(),
             0.9,
@@ -297,7 +240,7 @@ mod tests {
         );
 
         // when
-        let result = under_test.get_if_present(prompt).unwrap();
+        let result = under_test.get_if_present(&embedding).unwrap();
 
         // then
         assert!(
@@ -308,27 +251,16 @@ mod tests {
 
     #[test]
     fn get_should_return_error_on_semantic_store_failure() {
-        let prompt = "error test";
         let embedding = vec![0.1, 0.2, 0.3];
 
         // given
-        let mut mock_embedding_service = MockEmbeddingService::new();
-        mock_embedding_service
-            .expect_embed()
-            .with(eq(prompt))
-            .return_once({
-                let embedding = embedding.clone();
-                move |_| Ok(embedding)
-            });
-
         let mut mock_semantic_store = MockSemanticStore::new();
         mock_semantic_store
             .expect_get()
-            .with(eq(embedding), eq(TOP_K))
+            .with(eq(embedding.clone()), eq(TOP_K))
             .return_once(|_, _| Err(CacheError::FaissRetrievalError(Error::ParameterName)));
 
         let cache: Cache<String> = Cache::new(
-            Box::new(mock_embedding_service),
             Box::new(mock_semantic_store),
             ResponseStore::new(),
             0.9,
@@ -336,7 +268,7 @@ mod tests {
         );
 
         // when
-        let result = cache.get_if_present(prompt);
+        let result = cache.get_if_present(&embedding);
 
         // then
         match result {
@@ -349,17 +281,10 @@ mod tests {
 
     #[test]
     fn put_should_evict_when_entry_limit_reached() {
-        let prompt = String::from("test prompt");
-        let embedding = vec![0.1, 0.2, 0.3];
+        let embedding = vec![0.1_f32, 0.2, 0.3];
         let response = String::from("test response");
 
         // given
-        let mut mock_embed = MockEmbeddingService::new();
-        mock_embed.expect_embed().times(3).returning({
-            let embedding = embedding.clone();
-            move |_| Ok(embedding.clone())
-        });
-
         let mut mock_store = MockSemanticStore::new();
         mock_store.expect_put().times(3).returning(|_, _| Ok(()));
         mock_store.expect_delete().times(2).returning(|_| Ok(()));
@@ -367,7 +292,6 @@ mod tests {
         let response_store = ResponseStore::new();
 
         let cache = Cache::new(
-            Box::new(mock_embed),
             Box::new(mock_store),
             response_store,
             0.9,
@@ -375,16 +299,16 @@ mod tests {
         );
 
         // when - add first entry
-        cache.put(&prompt, response.clone()).unwrap();
+        cache.put(embedding.clone(), response.clone()).unwrap();
         assert_eq!(cache.response_store.len(), 1);
         assert!(!cache.is_full());
 
         // when - add second entry, this triggers eviction because after adding we have 2 items (which is >= limit)
-        cache.put(&prompt, response.clone()).unwrap();
+        cache.put(embedding.clone(), response.clone()).unwrap();
         assert_eq!(cache.response_store.len(), 1); // evicted back to 1
 
         // when - add third entry, again triggers eviction
-        cache.put(&prompt, response.clone()).unwrap();
+        cache.put(embedding.clone(), response.clone()).unwrap();
         assert_eq!(cache.response_store.len(), 1); // still 1
 
         // verify is_full returns false now since we have 1 item and limit is 2
@@ -393,17 +317,10 @@ mod tests {
 
     #[test]
     fn put_should_evict_when_memory_limit_reached() {
-        let prompt = String::from("test prompt");
         let embedding = vec![0.1, 0.2, 0.3];
         let response = String::from("A".repeat(100));
 
         // given
-        let mut mock_embed = MockEmbeddingService::new();
-        mock_embed.expect_embed().times(3).returning({
-            let embedding = embedding.clone();
-            move |_| Ok(embedding.clone())
-        });
-
         let mut mock_store = MockSemanticStore::new();
 
         mock_store.expect_put().times(3).returning(|_, _| Ok(()));
@@ -413,7 +330,6 @@ mod tests {
         let response_store = ResponseStore::new();
 
         let cache = Cache::new(
-            Box::new(mock_embed),
             Box::new(mock_store),
             response_store,
             0.9,
@@ -421,16 +337,16 @@ mod tests {
         );
 
         // when - add first entry
-        cache.put(&prompt, response.clone()).unwrap();
+        cache.put(embedding.clone(), response.clone()).unwrap();
         assert!(!cache.is_full()); // should have ~150 bytes (100 string + overhead + 50 semantic)
 
         // when - add second entry, this triggers eviction because memory exceeds limit of 300
-        cache.put(&prompt, response.clone()).unwrap();
+        cache.put(embedding.clone(), response.clone()).unwrap();
         assert_eq!(cache.response_store.len(), 1); // evicted back to 1
         assert!(!cache.is_full());
 
         // when - add third entry, again triggers eviction
-        cache.put(&prompt, response.clone()).unwrap();
+        cache.put(embedding.clone(), response.clone()).unwrap();
         assert_eq!(cache.response_store.len(), 1); // still 1
 
         // verify cache is not full after eviction
