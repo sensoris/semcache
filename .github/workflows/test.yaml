@@ -20,22 +20,8 @@ jobs:
       #- name: Rustfmt Check
       #  uses: actions-rust-lang/rustfmt@v1
       # Run tests using Docker
-      - name: Cache faiss build container
-        uses: actions/cache@v3
-        with:
-          path: /tmp/.buildx-cache
-          key: buildx-faiss-${{ hashFiles('Dockerfile.faiss') }}
-          restore-keys: |
-            buildx-faiss-
-      - name: Build faiss-base-image with caching
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: Dockerfile.faiss
-          tags: faiss-base-image
-          load: true
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache
+      - name: Build FAISS + Rust builder image
+        run: docker build -f Dockerfile.faiss -t faiss-base-image .
 
       - name: Build test image using builder
         run: docker build -f Dockerfile.test -t semcache-test .
