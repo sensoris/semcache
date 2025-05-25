@@ -46,7 +46,7 @@ async fn main() {
         "semcache-rs application started successfully on port {}",
         port
     );
-    
+
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await
