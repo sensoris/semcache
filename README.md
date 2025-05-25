@@ -1,11 +1,3 @@
-## Docker build
-
-`docker build -t semcache .`
-
-## Docker run
-
-`docker run --rm -p 8000:8000 --memory="128m" semcache`
-
 ## Call service
 
 ```shell
