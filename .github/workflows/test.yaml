@@ -21,7 +21,7 @@ jobs:
       #  uses: actions-rust-lang/rustfmt@v1
       # Run tests using Docker
       - name: Build FAISS + Rust builder image
-        run: docker build -f Dockerfile.faiss -t semcache-builder .
+        run: docker build -f Dockerfile.faiss -t faiss-base-image .
 
       - name: Build test image using builder
         run: docker build -f Dockerfile.test -t semcache-test .
