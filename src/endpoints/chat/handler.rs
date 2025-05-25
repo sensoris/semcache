@@ -3,11 +3,7 @@ use axum::{
     http::header::HeaderMap,
 };
 use std::sync::Arc;
-<<<<<<< HEAD
 use tracing::info;
-=======
-use tracing::debug;
->>>>>>> 5c866a2 (change println's to logs)
 
 use crate::app_state::AppState;
 use crate::metrics::CHAT_COMPLETIONS;
@@ -38,19 +34,11 @@ pub async fn completions(
 
     // return early if cache hit
     if let Some(saved_response) = state.cache.get_if_present(&prompt)? {
-<<<<<<< HEAD
         info!("CACHE HIT");
         return Ok(CompletionResponse::from_cache(saved_response)?);
     };
 
     info!("CACHE_MISS");
-=======
-        debug!("CACHE HIT");
-        return Ok(CompletionResponse::from_cache(saved_response)?);
-    };
-
-    debug!("CACHE_MISS");
->>>>>>> 5c866a2 (change println's to logs)
 
     // otherwise, send upstream request
     let auth_token = extract_auth_token(&headers)?;
