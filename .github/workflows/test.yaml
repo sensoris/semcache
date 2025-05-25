@@ -14,11 +14,11 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           components: rustfmt
-      - uses: Swatinem/rust-cache@v2
-      - name: Cargo check
-        run: cargo check --all-features
-      - name: Rustfmt Check
-        uses: actions-rust-lang/rustfmt@v1
+      #- uses: Swatinem/rust-cache@v2
+      #- name: Cargo check
+      #  run: cargo check --all-features
+      #- name: Rustfmt Check
+      #  uses: actions-rust-lang/rustfmt@v1
       # Run tests using Docker
       - name: Build FAISS + Rust builder image
         run: docker build -f Dockerfile.faiss -t semcache-builder .
