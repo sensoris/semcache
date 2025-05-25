@@ -14,7 +14,7 @@ use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
 async fn main() {
-    // TODO: this should come from config
+    // TODO (after config file ticket): this should come from config
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::new("info"))
         .init();

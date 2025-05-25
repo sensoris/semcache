@@ -36,7 +36,7 @@ impl SemanticStore for FlatIPFaissStore {
         let read_guard = self.faiss_store.read().expect(RW_LOCK_ERROR);
 
         // If index is empty, return empty results
-        // todo, does this properly make sense?
+        // TODO (v0): does this properly make sense?
         if read_guard.ntotal() == 0 {
             return Ok(SearchResult {
                 labels: vec![],
@@ -67,7 +67,7 @@ impl SemanticStore for FlatIPFaissStore {
         Ok(())
     }
 
-    // TODO this method is CLAUDE, defo need to evaluate it properly, read online how best to do this
+    // TODO (v0): this method is CLAUDE, defo need to evaluate it properly, read online how best to do this
     fn memory_usage_bytes(&self) -> usize {
         let read_guard = self.faiss_store.read().expect(RW_LOCK_ERROR);
 
@@ -81,7 +81,7 @@ impl SemanticStore for FlatIPFaissStore {
     }
 }
 
-// TODO: fix tests to work with FAISS, e.g with mocks? OR replace with someother vector db...
+// TODO (v0): fix tests to work with FAISS, e.g with mocks? OR replace with someother vector db...
 #[cfg(test)]
 mod tests {
 

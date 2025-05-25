@@ -30,10 +30,10 @@ impl<T: Clone + 'static> ResponseStore<T> {
     }
 
     pub fn get(&self, id: u64) -> Option<T> {
-        // TODO: should we replace all unwrap with unwrap_or_else?
+        // TODO (v0): should we replace all unwrap with unwrap_or_else?
         let mut cache = self.cache.lock().unwrap();
         let response = &cache.get_mut(&id)?.response;
-        // TODO: consider replacing clone with pointer to memory of this response?
+        // TODO (v0): consider replacing clone with pointer to memory of this response?
         // maybe shit actually since what if it gets evicted whilst we return it type shi
         Some(response.clone())
     }
@@ -75,7 +75,7 @@ impl<T: Clone + 'static> ResponseStore<T> {
     }
 }
 
-// TODO this method is CLAUDE, defo need to evaluate it properly, read online how best to do this
+// TODO (v0): this method is CLAUDE, defo need to evaluate it properly, read online how best to do this
 fn calculate_entry_size<T: Clone + 'static>(response: &T) -> usize {
     use std::any::Any;
     use std::mem;

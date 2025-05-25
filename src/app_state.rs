@@ -8,7 +8,7 @@ use reqwest::Client;
 pub struct AppState {
     pub http_client: Client,
     pub embedding_service: Box<dyn EmbeddingService>,
-    // todo we should probably use base64 or something that isn't string here
+    // TODO (not v0): we should probably use base64 or something that isn't string here
     pub cache: Cache<String>,
 }
 

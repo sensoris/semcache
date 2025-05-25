@@ -66,7 +66,7 @@ impl<T: Clone + 'static> Cache<T> {
         self.semantic_store.put(id.into(), embedding)?;
 
         // Evict entries if policy limits are exceeded
-        // Todo is a while best way to do this? e.g release chunks of memory before checking
+        // TODO (v0): is a while best way to do this? e.g release chunks of memory before checking
         while self.is_full() {
             info!("CACHE IS FULL, EVICTING!");
             if let Some(evicted_id) = self.response_store.pop() {
@@ -91,7 +91,7 @@ impl<T: Clone + 'static> Cache<T> {
         }
     }
 
-    // todo: maybe this can be in the semantic store
+    // TODO (v0): maybe this can be in the semantic store
     fn find_nearest_id(&self, search_result: &SearchResult) -> Option<u64> {
         let maybe_idx = search_result
             .distances
