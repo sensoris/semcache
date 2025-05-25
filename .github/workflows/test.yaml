@@ -19,5 +19,12 @@ jobs:
         run: cargo check --all-features
       - name: Rustfmt Check
         uses: actions-rust-lang/rustfmt@v1
-      - name: Run tests
-        run: cargo test --all-features
+      # Run tests using Docker
+      - name: Build FAISS + Rust builder image
+        run: docker build -f Dockerfile.faiss -t semcache-builder .
+
+      - name: Build test image using builder
+        run: docker build -f Dockerfile.test -t semcache-test .
+
+      - name: Run tests inside test container
+        run: docker run -t --rm semcache-test
