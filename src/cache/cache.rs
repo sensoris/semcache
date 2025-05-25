@@ -47,7 +47,6 @@ impl<T: Clone + 'static> Cache<T> {
     }
 
     pub fn get_if_present(&self, embedding: &Vec<f32>) -> Result<Option<T>, CacheError> {
-
         // search semantic store for vectors similar to our query vector
         let search_result = self.semantic_store.get(&embedding, TOP_K)?;
 
@@ -113,12 +112,10 @@ mod tests {
 
     use crate::cache::cache::EvictionPolicy;
     use crate::cache::response_store::ResponseStore;
-    use crate::{
-        cache::{
-            cache::{Cache, TOP_K},
-            error::CacheError,
-            semantic_store::semantic_store::MockSemanticStore,
-        },
+    use crate::cache::{
+        cache::{Cache, TOP_K},
+        error::CacheError,
+        semantic_store::semantic_store::MockSemanticStore,
     };
 
     #[test]

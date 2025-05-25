@@ -31,8 +31,8 @@ impl FlatIPFaissStore {
 }
 
 impl SemanticStore for FlatIPFaissStore {
-    fn get(&self, vec: Vec<f32>, top_k: usize) -> Result<SearchResult, CacheError> {
-        let vec = normalize(vec);
+    fn get(&self, vec: &Vec<f32>, top_k: usize) -> Result<SearchResult, CacheError> {
+        let vec = normalize(&vec);
         let read_guard = self.faiss_store.read().expect(RW_LOCK_ERROR);
 
         // If index is empty, return empty results
@@ -49,7 +49,7 @@ impl SemanticStore for FlatIPFaissStore {
     }
 
     fn put(&self, id: u64, vec: Vec<f32>) -> Result<(), CacheError> {
-        let vec = normalize(vec);
+        let vec = normalize(&vec);
         let id = Idx::new(id.into());
         let mut write_guard = self.faiss_store.write().expect(RW_LOCK_ERROR);
         write_guard.add_with_ids(&vec, &vec![id])?;
@@ -100,7 +100,7 @@ mod tests {
 
         // when
         let query = vec![0_f32, 0.99, 0.0];
-        let found = faiss_store.get(query, 1).expect("No vector found");
+        let found = faiss_store.get(&query, 1).expect("No vector found");
 
         // then
         assert_eq!(found.distances.len(), 1);
@@ -116,7 +116,7 @@ mod tests {
 
         // when
         let query = vec![0_f32, 1.0, 0.0];
-        let found = cache.get(query, 1).expect("No vector found");
+        let found = cache.get(&query, 1).expect("No vector found");
 
         // then
         assert_eq!(found.distances.len(), 1);
@@ -133,11 +133,11 @@ mod tests {
 
         let query = vec![0_f32, 0.99, 0.0];
 
-        let found = cache.get(query.clone(), 1).expect("");
+        let found = cache.get(&query, 1).expect("");
         assert_eq!(found.distances.len(), 1);
 
         cache.delete(id).expect("");
-        let after_delete = cache.get(query, 1).expect("");
+        let after_delete = cache.get(&query, 1).expect("");
         assert_eq!(after_delete.distances.len(), 0);
     }
 }
