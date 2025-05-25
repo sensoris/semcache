@@ -9,6 +9,7 @@ use faiss::index::SearchResult;
 #[derive(Debug, Clone)]
 pub enum EvictionPolicy {
     EntryLimit(usize),
+    #[allow(dead_code)]
     MemoryLimitBytes(usize), // Could also implement a "combined" of both limits
 }
 
