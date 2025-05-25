@@ -35,36 +35,34 @@ cmake --build build -j$(nproc)
 ### install onto your system
 
 ```shell
-sudo cmake --install build
+cmake --install build
 ```
 
-## Building with docker
+## Docker
 
-Building the project with docker is a two stage process, since we need a docker container with faiss installed locally onto the system.
-
-### Build a base image with faiss 
-
-#### Note: name is important as this is referenced in downstream Dockerfiles
-
-```shell
-sudo docker build -f Dockerfile.faiss -t faiss-base-image
-```
+The Dockefiles use the base image created using `Dockerfile.faiss`
 
 ### Build the release version of semcache
 
 ```shell
-sudo docker build -f Dockerfile -t semcache-rs .
+docker build -f Dockerfile -t semcache-rs .
+```
+
+Running:
+
+```shell
+docker run -p 8080:8080 semcache-rs
 ```
 
 ### Build a container for running tests
 
 ```shell
-sudo docker build -f Dockerfile.test -t semcache-test .
+docker build -f Dockerfile.test -t semcache-test .
 ```
 
 ## Scripts
 
-Easy way to send request:
+Easy way to send a request:
 
 ```shell
 ➜ python scripts/request.py openai $API_KEY "What is the capital of France?"
