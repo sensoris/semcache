@@ -2,6 +2,7 @@ use axum::response::{IntoResponse, Response};
 use reqwest::StatusCode;
 
 use thiserror::Error;
+use tracing::warn;
 
 use crate::cache::error::CacheError;
 
@@ -25,7 +26,7 @@ impl IntoResponse for CompletionError {
     fn into_response(self) -> Response {
         match self {
             Self::Upstream(reqwest_err) => {
-                eprintln!(
+                warn!(
                     "Error: {} when calling upstream: {}, with status code: {}",
                     reqwest_err.to_string(),
                     reqwest_err
@@ -39,7 +40,7 @@ impl IntoResponse for CompletionError {
                 (StatusCode::INTERNAL_SERVER_ERROR, "Failed to call upstream").into_response()
             }
             Self::InvalidResponse(serde_error) => {
-                eprintln!("error parsing json {}", serde_error);
+                warn!("error parsing json {}", serde_error);
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "Failed to parse json from upstream",
@@ -47,11 +48,11 @@ impl IntoResponse for CompletionError {
                     .into_response()
             }
             Self::InvalidRequest(message) => {
-                eprint!("Failed to parse input, {}", message);
+                warn!("Failed to parse input, {}", message);
                 (StatusCode::BAD_REQUEST, message).into_response()
             }
             Self::InternalCacheError(internal_errror) => {
-                eprint!("Internal caching error: {}", internal_errror);
+                warn!("Internal caching error: {}", internal_errror);
                 (StatusCode::INTERNAL_SERVER_ERROR, "Something went wrong!").into_response()
             }
         }
