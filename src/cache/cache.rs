@@ -5,6 +5,7 @@ use super::semantic_store::semantic_store::SemanticStore;
 use crate::cache::response_store::ResponseStore;
 use crate::embedding::service::EmbeddingService;
 use faiss::index::SearchResult;
+use tracing::info;
 
 #[derive(Debug, Clone)]
 pub enum EvictionPolicy {
@@ -76,9 +77,9 @@ impl<T: Clone + 'static> Cache<T> {
         // Evict entries if policy limits are exceeded
         // Todo is a while best way to do this? e.g release chunks of memory before checking
         while self.is_full() {
-            println!("CACHE IS FULL, EVICTING!");
+            info!("CACHE IS FULL, EVICTING!");
             if let Some(evicted_id) = self.response_store.pop() {
-                println!("Evicting #{evicted_id}");
+                info!("Evicting #{evicted_id}");
                 self.semantic_store.delete(evicted_id)?;
             } else {
                 break; // No more entries to evict

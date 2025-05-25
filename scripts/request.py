@@ -5,11 +5,12 @@ import json
 import sys
 import time
 
+
 def make_request(provider, api_key, prompt, full_response=False, proxy=True):
     start_time = time.time()
 
     if proxy:
-        base_url = "http://localhost:8000"
+        base_url = "http://localhost:8080"
     else:
         if provider == "openai":
             base_url = "https://api.openai.com/v1"
@@ -18,19 +19,20 @@ def make_request(provider, api_key, prompt, full_response=False, proxy=True):
         elif provider == "anthropic":
             base_url = "https://api.anthropic.com/v1"
 
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}"
-    }
+    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
 
     if proxy:
         if provider == "openai":
             headers["host"] = "api.openai.com"
-            headers["X-LLM-Proxy-Upstream"] = "https://api.openai.com/v1/chat/completions"
+            headers["X-LLM-Proxy-Upstream"] = (
+                "https://api.openai.com/v1/chat/completions"
+            )
             url = f"{base_url}/chat/completions"
         elif provider == "deepseek":
             headers["host"] = "api.deepseek.com"
-            headers["X-LLM-Proxy-Upstream"] = "https://api.deepseek.com/v1/chat/completions"
+            headers["X-LLM-Proxy-Upstream"] = (
+                "https://api.deepseek.com/v1/chat/completions"
+            )
             url = f"{base_url}/chat/completions"
         elif provider == "anthropic":
             headers["host"] = "api.anthropic.com"
@@ -49,7 +51,7 @@ def make_request(provider, api_key, prompt, full_response=False, proxy=True):
         data = {
             "model": "claude-3-sonnet-20240229",
             "max_tokens": 1000,
-            "messages": [{"role": "user", "content": prompt}]
+            "messages": [{"role": "user", "content": prompt}],
         }
     else:
         if provider == "openai":
@@ -57,10 +59,7 @@ def make_request(provider, api_key, prompt, full_response=False, proxy=True):
         elif provider == "deepseek":
             model = "deepseek-chat"
 
-        data = {
-            "model": model,
-            "messages": [{"role": "user", "content": prompt}]
-        }
+        data = {"model": model, "messages": [{"role": "user", "content": prompt}]}
 
     response = requests.post(url, headers=headers, json=data)
     end_time = time.time()
@@ -78,9 +77,12 @@ def make_request(provider, api_key, prompt, full_response=False, proxy=True):
         else:
             return result["choices"][0]["message"]["content"]
 
+
 if __name__ == "__main__":
     if len(sys.argv) < 4:
-        print("Usage: python script.py <provider> <api_key> <prompt> [full_response] [proxy]")
+        print(
+            "Usage: python script.py <provider> <api_key> <prompt> [full_response] [proxy]"
+        )
         sys.exit(1)
 
     provider = sys.argv[1]
