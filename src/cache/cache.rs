@@ -344,4 +344,94 @@ mod tests {
             _ => panic!("Expected SemanticStoreError, got {:?}", result),
         }
     }
+
+    #[test]
+    fn put_should_evict_when_entry_limit_reached() {
+        let prompt = String::from("test prompt");
+        let embedding = vec![0.1, 0.2, 0.3];
+        let response = String::from("test response");
+
+        // given
+        let mut mock_embed = MockEmbeddingService::new();
+        mock_embed.expect_embed().times(3).returning({
+            let embedding = embedding.clone();
+            move |_| Ok(embedding.clone())
+        });
+
+        let mut mock_store = MockSemanticStore::new();
+        mock_store.expect_put().times(3).returning(|_, _| Ok(()));
+        mock_store.expect_delete().times(2).returning(|_| Ok(()));
+
+        let response_store = ResponseStore::new();
+
+        let cache = Cache::new(
+            Box::new(mock_embed),
+            Box::new(mock_store),
+            response_store,
+            0.9,
+            EvictionPolicy::EntryLimit(2),
+        );
+
+        // when - add first entry
+        cache.put(&prompt, response.clone()).unwrap();
+        assert_eq!(cache.response_store.len(), 1);
+        assert!(!cache.is_full());
+
+        // when - add second entry, this triggers eviction because after adding we have 2 items (which is >= limit)
+        cache.put(&prompt, response.clone()).unwrap();
+        assert_eq!(cache.response_store.len(), 1); // evicted back to 1
+
+        // when - add third entry, again triggers eviction
+        cache.put(&prompt, response.clone()).unwrap();
+        assert_eq!(cache.response_store.len(), 1); // still 1
+
+        // verify is_full returns false now since we have 1 item and limit is 2
+        assert!(!cache.is_full());
+    }
+
+    #[test]
+    fn put_should_evict_when_memory_limit_reached() {
+        let prompt = String::from("test prompt");
+        let embedding = vec![0.1, 0.2, 0.3];
+        let response = String::from("A".repeat(100));
+
+        // given
+        let mut mock_embed = MockEmbeddingService::new();
+        mock_embed.expect_embed().times(3).returning({
+            let embedding = embedding.clone();
+            move |_| Ok(embedding.clone())
+        });
+
+        let mut mock_store = MockSemanticStore::new();
+
+        mock_store.expect_put().times(3).returning(|_, _| Ok(()));
+        mock_store.expect_delete().times(2).returning(|_| Ok(()));
+        mock_store.expect_memory_usage_bytes().returning(|| 50);
+
+        let response_store = ResponseStore::new();
+
+        let cache = Cache::new(
+            Box::new(mock_embed),
+            Box::new(mock_store),
+            response_store,
+            0.9,
+            EvictionPolicy::MemoryLimitBytes(300),
+        );
+
+        // when - add first entry
+        cache.put(&prompt, response.clone()).unwrap();
+        assert!(!cache.is_full()); // should have ~150 bytes (100 string + overhead + 50 semantic)
+
+        // when - add second entry, this triggers eviction because memory exceeds limit of 300
+        cache.put(&prompt, response.clone()).unwrap();
+        assert_eq!(cache.response_store.len(), 1); // evicted back to 1
+        assert!(!cache.is_full());
+
+        // when - add third entry, again triggers eviction
+        cache.put(&prompt, response.clone()).unwrap();
+        assert_eq!(cache.response_store.len(), 1); // still 1
+
+        // verify cache is not full after eviction
+        assert!(!cache.is_full());
+    }
 }
