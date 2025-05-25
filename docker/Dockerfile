@@ -1,6 +1,6 @@
 
-# This depends on the faiss-image being built
-FROM faiss-base-image AS builder
+# Contains prebuilt FAISS c++ and Rust
+FROM ghcr.io/sensoris/faiss-base-image:latest AS builder
 
 COPY . /app
 WORKDIR /app
@@ -22,7 +22,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /usr/local /usr/local
 COPY --from=builder /app/target/release/semcache-rs /usr/local/bin/semcache-rs
 COPY ./assets ./app/assets
-
 
 # Point linker to faiss installation
 ENV LD_LIBRARY_PATH="/usr/local/lib"

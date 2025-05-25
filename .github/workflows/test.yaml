@@ -9,22 +9,14 @@ jobs:
   test:
     name: Lint & Test
     runs-on: ubuntu-latest
+    container: ghcr.io/sensoris/faiss-base-image:latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          components: rustfmt
-      - uses: Swatinem/rust-cache@v2
-      - name: Cargo check
-        run: cargo check --all-features
-      - name: Rustfmt Check
-        uses: actions-rust-lang/rustfmt@v1
-      # Run tests using Docker
-      - name: Build FAISS + Rust builder image
-        run: docker build -f Dockerfile.faiss -t faiss-base-image .
-
-      - name: Build test image using builder
-        run: docker build -f Dockerfile.test -t semcache-test .
-
-      - name: Run tests inside test container
-        run: docker run -t --rm semcache-test
+      - name: Set default Rust toolchain
+        run: rustup default stable
+      - name: Cargo format check
+        run: cargo fmt --check
+      - name: Run tests
+        run: cargo test --all-features -- --nocapture
+        env:
+          LD_LIBRARY_PATH: "/usr/local/lib"
