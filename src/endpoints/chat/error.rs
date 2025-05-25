@@ -4,7 +4,7 @@ use reqwest::StatusCode;
 use thiserror::Error;
 use tracing::warn;
 
-use crate::cache::error::CacheError;
+use crate::{cache::error::CacheError, embedding::error::EmbeddingError};
 
 // Error type
 #[derive(Debug, Error)]
@@ -20,6 +20,9 @@ pub enum CompletionError {
 
     #[error("Error in caching layer: {0}")]
     InternalCacheError(#[from] CacheError),
+
+    #[error("Error generating embedding: {0}")]
+    InternalEmbeddingError(#[from] EmbeddingError),
 }
 
 impl IntoResponse for CompletionError {
@@ -53,6 +56,10 @@ impl IntoResponse for CompletionError {
             }
             Self::InternalCacheError(internal_errror) => {
                 warn!("Internal caching error: {}", internal_errror);
+                (StatusCode::INTERNAL_SERVER_ERROR, "Something went wrong!").into_response()
+            }
+            Self::InternalEmbeddingError(internal_error) => {
+                warn!("Internal embedding error: {}", internal_error);
                 (StatusCode::INTERNAL_SERVER_ERROR, "Something went wrong!").into_response()
             }
         }
