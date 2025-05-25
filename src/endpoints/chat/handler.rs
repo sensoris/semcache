@@ -32,6 +32,8 @@ pub async fn completions(
         ))?
         .content;
 
+    let embedding = state.embedding_service.embed(&prompt)?;
+
     // return early if cache hit
     if let Some(saved_response) = state.cache.get_if_present(&prompt)? {
         info!("CACHE HIT");
@@ -49,7 +51,7 @@ pub async fn completions(
 
     // save returned response in cache
     let response_string: String = (&response).try_into()?;
-    state.cache.put(prompt, response_string)?;
+    state.cache.put(embedding, response_string)?;
 
     Ok(response)
 }
