@@ -1,6 +1,6 @@
 
 # Contains prebuilt FAISS c++ and Rust
-FROM louiscb/faiss-base-image:latest AS builder
+FROM ghcr.io/sensoris/faiss-base-image:latest AS builder
 
 COPY . /app
 WORKDIR /app

@@ -40,9 +40,9 @@ cmake --install build
 
 ## Docker
 
-The Dockefiles use the base image created using `Dockerfile.faiss`
+The Dockefile uses the base image created using `docker/Dockerfile.faiss`
 
-### Build the release version of semcache
+Build:
 
 ```shell
 docker build -f Dockerfile -t semcache-rs .
@@ -52,12 +52,6 @@ Running:
 
 ```shell
 docker run -p 8080:8080 semcache-rs
-```
-
-### Build a container for running tests
-
-```shell
-docker build -f Dockerfile.test -t semcache-test .
 ```
 
 ## Scripts

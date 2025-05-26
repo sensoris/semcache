@@ -1,5 +1,5 @@
 # Use your existing builder image with FAISS and Rust
-FROM louiscb/faiss-base-image:latest AS test-runner
+FROM ghcr.io/sensoris/faiss-base-image:latest AS test-runner
 
 # Copy the project source code into the container
 WORKDIR /app
