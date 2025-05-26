@@ -29,3 +29,25 @@ impl AppState {
         }
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use crate::app_state::AppState;
+
+    #[test]
+    fn putting_same_prompt_different_response() {
+        let app_state = AppState::new();
+        let embedding = app_state.embedding_service.embed("First prompt").unwrap();
+        
+        let first_response = "First response".to_string();
+        app_state.cache.put(embedding.clone(), first_response.clone()).expect("TODO: panic message");
+        let result = app_state.cache.get_if_present(&embedding).unwrap().expect("a");
+        assert_eq!(result, first_response);
+
+        let second_response = "Second response".to_string();
+        app_state.cache.put(embedding.clone(), second_response.clone()).expect("TODO: panic message");
+        let second_result = app_state.cache.get_if_present(&embedding).unwrap().expect("a");
+        assert_eq!(second_result, second_response);
+    }
+}

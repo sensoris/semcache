@@ -30,6 +30,7 @@ impl<T: Clone + 'static> Cache<T> {
         similarity_threshold: f32,
         eviction_policy: EvictionPolicy,
     ) -> Self {
+        // todo we said we wanted to normalise this between 0 and 1 right?
         assert!(
             similarity_threshold >= -1.0 && similarity_threshold <= 1.0,
             "similarity_threshold must be between -1.0 and 1.0"
@@ -60,6 +61,9 @@ impl<T: Clone + 'static> Cache<T> {
     }
 
     pub fn put(&self, embedding: Vec<f32>, response: T) -> Result<(), CacheError> {
+        // todo check if semantic_store has an exact match of this embedding, if it does then we can 
+        // reuse the existing id, and just set the response of this id to the new response
+        
         let id = self.id_generator.fetch_add(1, Ordering::Relaxed);
 
         self.response_store.put(id.into(), response);
