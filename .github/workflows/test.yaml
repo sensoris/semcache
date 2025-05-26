@@ -9,9 +9,6 @@ jobs:
   test:
     name: Lint & Test
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: read
     container: ghcr.io/sensoris/faiss-base-image:latest
     steps:
       - uses: actions/checkout@v4
