@@ -21,3 +21,4 @@ mockall = "0.13.1"
 lru = "0.14.0"
 tracing = "0.1.41"
 tracing-subscriber = {version = "0.3.19", features = ["env-filter"]}
+ordered-float = "5.0.0"

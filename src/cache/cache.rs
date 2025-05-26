@@ -3,7 +3,6 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use super::error::CacheError;
 use super::semantic_store::semantic_store::SemanticStore;
 use crate::cache::response_store::ResponseStore;
-use faiss::index::SearchResult;
 use tracing::info;
 
 #[derive(Debug, Clone)]
@@ -48,13 +47,19 @@ impl<T: Clone + 'static> Cache<T> {
 
     pub fn get_if_present(&self, embedding: &Vec<f32>) -> Result<Option<T>, CacheError> {
         // search semantic store for vectors similar to our query vector
-        let search_result = self.semantic_store.get(&embedding, TOP_K)?;
+        let search_result =
+            self.semantic_store
+                .get(&embedding, TOP_K, self.similarity_threshold)?;
 
-        // find idx of highest similarity stored value that is above similarity_threshold
-        let id = self.find_nearest_id(&search_result);
+        // return early if no fitting match found
+        if search_result.is_empty() {
+            return Ok(None);
+        }
+        // choose best match
+        let id = search_result[0];
 
         // extract saved response using the index of the nearest vector
-        let cached_response = id.and_then(|idx| self.response_store.get(idx));
+        let cached_response = self.response_store.get(id);
 
         Ok(cached_response)
     }
@@ -90,24 +95,11 @@ impl<T: Clone + 'static> Cache<T> {
             }
         }
     }
-
-    // TODO (v0): maybe this can be in the semantic store
-    fn find_nearest_id(&self, search_result: &SearchResult) -> Option<u64> {
-        let maybe_idx = search_result
-            .distances
-            .iter()
-            .zip(&search_result.labels)
-            .filter_map(|(distance, raw_idx)| raw_idx.get().map(|idx| (*distance, idx)))
-            .filter(|(distance, _)| *distance > self.similarity_threshold)
-            .max_by(|(d1, _), (d2, _)| d1.partial_cmp(d2).unwrap())
-            .map(|(_distance, idx)| idx);
-        maybe_idx
-    }
 }
 
 #[cfg(test)]
 mod tests {
-    use faiss::{Idx, error::Error, index::SearchResult};
+    use faiss::error::Error;
     use mockall::predicate::eq;
 
     use crate::cache::cache::EvictionPolicy;
@@ -119,23 +111,18 @@ mod tests {
     };
 
     #[test]
-    fn get_should_return_most_similar_when_multiple_search_result() {
+    fn get_should_return_first_entry_when_multiple_found() {
         let embedding = vec![0_f32, 1.0, 0.0];
         let saved_response = String::from("this is a saved response");
 
         let mut mock_semantic_store = MockSemanticStore::new();
         mock_semantic_store
             .expect_get()
-            .with(eq(embedding.clone()), eq(TOP_K))
-            .return_once(|_, _| {
-                Ok(SearchResult {
-                    distances: vec![0.8, 0.9, 0.91],
-                    labels: vec![Idx::new(0), Idx::new(1), Idx::new(2)],
-                })
-            });
+            .with(eq(embedding.clone()), eq(TOP_K), eq(0.9))
+            .return_once(|_, _, _| Ok(vec![0, 1, 2]));
 
         let response_store = ResponseStore::new();
-        response_store.put(2, saved_response.clone());
+        response_store.put(0, saved_response.clone());
 
         let under_test = Cache::new(
             Box::new(mock_semantic_store),
@@ -159,13 +146,8 @@ mod tests {
         let mut mock_semantic_store = MockSemanticStore::new();
         mock_semantic_store
             .expect_get()
-            .with(eq(embedding.clone()), eq(TOP_K))
-            .return_once(|_, _| {
-                Ok(SearchResult {
-                    distances: vec![],
-                    labels: vec![],
-                })
-            });
+            .with(eq(embedding.clone()), eq(TOP_K), eq(0.9))
+            .return_once(|_, _, _| Ok(vec![]));
 
         let under_test: Cache<String> = Cache::new(
             Box::new(mock_semantic_store),
@@ -217,39 +199,6 @@ mod tests {
     }
 
     #[test]
-    fn get_should_filter_out_low_similarity_results() {
-        let embedding = vec![0.1, 0.2, 0.3];
-
-        // given
-        let mut mock_semantic_store = MockSemanticStore::new();
-        mock_semantic_store
-            .expect_get()
-            .with(eq(embedding.clone()), eq(TOP_K))
-            .return_once(|_, _| {
-                Ok(SearchResult {
-                    distances: vec![0.4, 0.5],
-                    labels: vec![Idx::new(0), Idx::new(1)],
-                })
-            });
-
-        let under_test: Cache<String> = Cache::new(
-            Box::new(mock_semantic_store),
-            ResponseStore::new(),
-            0.9,
-            EvictionPolicy::EntryLimit(100),
-        );
-
-        // when
-        let result = under_test.get_if_present(&embedding).unwrap();
-
-        // then
-        assert!(
-            result.is_none(),
-            "Expected no match due to low similarity scores"
-        );
-    }
-
-    #[test]
     fn get_should_return_error_on_semantic_store_failure() {
         let embedding = vec![0.1, 0.2, 0.3];
 
@@ -257,8 +206,8 @@ mod tests {
         let mut mock_semantic_store = MockSemanticStore::new();
         mock_semantic_store
             .expect_get()
-            .with(eq(embedding.clone()), eq(TOP_K))
-            .return_once(|_, _| Err(CacheError::FaissRetrievalError(Error::ParameterName)));
+            .with(eq(embedding.clone()), eq(TOP_K), eq(0.9))
+            .return_once(|_, _, _| Err(CacheError::FaissRetrievalError(Error::ParameterName)));
 
         let cache: Cache<String> = Cache::new(
             Box::new(mock_semantic_store),

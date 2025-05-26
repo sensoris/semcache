@@ -6,6 +6,7 @@ use faiss::{
     ConcurrentIndex, IdMap, Idx, Index,
     index::{SearchResult, flat::FlatIndexImpl},
 };
+use ordered_float::OrderedFloat;
 
 use crate::cache::error::CacheError;
 
@@ -31,20 +32,22 @@ impl FlatIPFaissStore {
 }
 
 impl SemanticStore for FlatIPFaissStore {
-    fn get(&self, vec: &Vec<f32>, top_k: usize) -> Result<SearchResult, CacheError> {
+    fn get(
+        &self,
+        vec: &Vec<f32>,
+        top_k: usize,
+        similarity_threshold: f32,
+    ) -> Result<Vec<u64>, CacheError> {
         let vec = normalize(&vec);
         let read_guard = self.faiss_store.read().expect(RW_LOCK_ERROR);
 
-        // If index is empty, return empty results
-        // TODO (v0): does this properly make sense?
+        // faiss will return nonsense from a search if it's empty
         if read_guard.ntotal() == 0 {
-            return Ok(SearchResult {
-                labels: vec![],
-                distances: vec![],
-            });
+            return Ok(vec![]);
         }
 
-        let result = ConcurrentIndex::search(&*read_guard, &vec, top_k)?;
+        let search_result = ConcurrentIndex::search(&*read_guard, &vec, top_k)?;
+        let result = find_nearest_ids(search_result, similarity_threshold);
         Ok(result)
     }
 
@@ -81,13 +84,54 @@ impl SemanticStore for FlatIPFaissStore {
     }
 }
 
-// TODO (v0): fix tests to work with FAISS, e.g with mocks? OR replace with someother vector db...
+fn find_nearest_ids(search_result: SearchResult, similarity_threshold: f32) -> Vec<u64> {
+    let mut distances_and_ids: Vec<(f32, u64)> = search_result
+        .distances
+        .into_iter()
+        // zip the distances and labels together so we can process each vector cohesively
+        .zip(search_result.labels.into_iter())
+        // filter out NaN distances
+        .filter(|(distance, _)| distance.is_finite())
+        // filter out invalid id's
+        .filter_map(|(distance, idx)| match idx.get() {
+            Some(id) => Some((distance, id)),
+            None => None,
+        })
+        // filter out matches that don't meet threshold
+        .filter(|(distance, _)| distance >= &similarity_threshold)
+        .collect();
+
+    // ensure our found vectors are sorted in order of closest match first
+    distances_and_ids.sort_by_key(|(distance, _)| std::cmp::Reverse(OrderedFloat(*distance)));
+
+    // extract ids of matching entries
+    distances_and_ids
+        .into_iter()
+        .map(|distance_and_id| distance_and_id.1)
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
 
     use crate::cache::semantic_store::flat_ip_faiss_store::FlatIPFaissStore;
 
     use super::SemanticStore;
+
+    #[test]
+    fn get_should_return_empty_when_store_is_empty() {
+        // given
+        let faiss_store = FlatIPFaissStore::new(3);
+
+        // when
+        let query = vec![0_f32, 0.99, 0.0];
+        let found = faiss_store
+            .get(&query, 1, 0.9)
+            .expect("error in faiss store");
+
+        // then
+        assert_eq!(found.len(), 0);
+    }
 
     #[test]
     fn get_should_return_most_similar() {
@@ -100,28 +144,44 @@ mod tests {
 
         // when
         let query = vec![0_f32, 0.99, 0.0];
-        let found = faiss_store.get(&query, 1).expect("No vector found");
+        let found = faiss_store.get(&query, 1, 0.9).expect("No vector found");
 
         // then
-        assert_eq!(found.distances.len(), 1);
-        assert_eq!(found.labels[0].to_native(), 1);
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0], 1);
     }
 
     #[test]
-    fn get_with_identical_vector_should_return_same_vector() {
+    fn get_should_return_closest_vector_first() {
         // given
         let cache = FlatIPFaissStore::new(3);
-        let vec1 = vec![0_f32, 1.0, 0.0];
+        let vec1 = vec![0_f32, 0.99, 0.0];
         cache.put(1, vec1).expect("failed to insert vectors");
+        let vec2 = vec![0_f32, 1.0, 0.0];
+        cache.put(2, vec2).expect("failed to insert vectors");
 
         // when
         let query = vec![0_f32, 1.0, 0.0];
-        let found = cache.get(&query, 1).expect("No vector found");
+        let found = cache.get(&query, 2, 0.9).expect("No vector found");
 
         // then
-        assert_eq!(found.distances.len(), 1);
-        assert_eq!(found.labels[0].to_native(), 1);
-        assert_eq!(found.distances[0], 1.0);
+        assert_eq!(found.len(), 2);
+        assert_eq!(found, vec!(2, 1));
+    }
+
+    #[test]
+    fn get_should_filter_out_matches_below_threshold() {
+        // given
+        let cache = FlatIPFaissStore::new(3);
+        let vec = vec![0_f32, 1.0, 0.0];
+        cache.put(1, vec).expect("failed to insert vectors");
+
+        // when
+        let query = vec![0_f32, 0.0, 0.0];
+        let found = cache.get(&query, 2, 0.9).expect("No vector found");
+
+        // then
+        assert_eq!(found.len(), 0);
     }
 
     #[test]
@@ -133,11 +193,11 @@ mod tests {
 
         let query = vec![0_f32, 0.99, 0.0];
 
-        let found = cache.get(&query, 1).expect("");
-        assert_eq!(found.distances.len(), 1);
+        let found = cache.get(&query, 1, 0.9).expect("");
+        assert_eq!(found.len(), 1);
 
         cache.delete(id).expect("");
-        let after_delete = cache.get(&query, 1).expect("");
-        assert_eq!(after_delete.distances.len(), 0);
+        let after_delete = cache.get(&query, 1, 0.9).expect("");
+        assert_eq!(after_delete.len(), 0);
     }
 }
