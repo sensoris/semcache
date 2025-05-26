@@ -12,6 +12,8 @@ jobs:
     container: ghcr.io/sensoris/faiss-base-image:latest
     steps:
       - uses: actions/checkout@v4
+      - name: Set default Rust toolchain
+        run: rustup default stable
       - name: Cargo format check
         run: cargo fmt --check
       - name: Cargo check
