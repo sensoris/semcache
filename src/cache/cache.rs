@@ -30,8 +30,8 @@ impl<T: Clone + 'static> Cache<T> {
         eviction_policy: EvictionPolicy,
     ) -> Self {
         assert!(
-            similarity_threshold >= -1.0 && similarity_threshold <= 1.0,
-            "similarity_threshold must be between -1.0 and 1.0"
+            similarity_threshold >= 0.0 && similarity_threshold <= 1.0,
+            "similarity_threshold must be between 0.0 and 1.0"
         );
 
         let id_generator = AtomicU64::new(0);
