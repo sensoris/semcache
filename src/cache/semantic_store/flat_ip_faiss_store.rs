@@ -7,6 +7,7 @@ use faiss::{
     index::{SearchResult, flat::FlatIndexImpl},
 };
 use ordered_float::OrderedFloat;
+use tracing::error;
 
 use crate::cache::error::CacheError;
 
@@ -21,8 +22,14 @@ const RW_LOCK_ERROR: &'static str = "RwLock poisoned, faiss store might be corru
 
 impl FlatIPFaissStore {
     pub fn new(dimensionality: u32) -> Self {
-        let faiss_index = FlatIndexImpl::new_ip(dimensionality).unwrap();
-        let id_map = IdMap::new(faiss_index).unwrap();
+        let faiss_index = FlatIndexImpl::new_ip(dimensionality).unwrap_or_else(|err| {
+            error!(error = ?err);
+            panic!("failed to init faiss index")
+        });
+        let id_map = IdMap::new(faiss_index).unwrap_or_else(|err| {
+            error!(error = ?err);
+            panic!("failed to init faiss index")
+        });
         let faiss_store = RwLock::new(id_map);
         FlatIPFaissStore {
             faiss_store,

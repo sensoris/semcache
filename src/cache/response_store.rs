@@ -1,6 +1,7 @@
 use lru::LruCache;
 use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, Mutex};
+use tracing::error;
 
 struct EntryMetadata {
     // created_at: u64,
@@ -19,6 +20,8 @@ pub struct ResponseStore<T> {
     total_size_bytes: Arc<AtomicUsize>,
 }
 
+const MUTEX_PANIC: &str = "Mutex attempted to get grabbed twice by the same thread, unrecoverable error in response_store";
+
 impl<T: Clone + 'static> ResponseStore<T> {
     // Creates a new ResponseStore for a generic response type. Does not automatically evict
     // items so those operations need to be performed by the orchestrator.
@@ -30,8 +33,10 @@ impl<T: Clone + 'static> ResponseStore<T> {
     }
 
     pub fn get(&self, id: u64) -> Option<T> {
-        // TODO (v0): should we replace all unwrap with unwrap_or_else?
-        let mut cache = self.cache.lock().unwrap();
+        let mut cache = self.cache.lock().unwrap_or_else(|err| {
+            error!(error = ?err, "Mutex poisoned");
+            panic!("{}", MUTEX_PANIC)
+        });
         let response = &cache.get_mut(&id)?.response;
         // TODO (v0): consider replacing clone with pointer to memory of this response?
         // maybe shit actually since what if it gets evicted whilst we return it type shi
@@ -45,14 +50,20 @@ impl<T: Clone + 'static> ResponseStore<T> {
             metadata: EntryMetadata { size_bytes },
         };
 
-        let mut cache = self.cache.lock().unwrap();
+        let mut cache = self.cache.lock().unwrap_or_else(|err| {
+            error!(error = ?err, "Mutex poisoned");
+            panic!("{}", MUTEX_PANIC)
+        });
         cache.put(id, entry);
         self.total_size_bytes
             .fetch_add(size_bytes, std::sync::atomic::Ordering::Relaxed);
     }
 
     pub fn pop(&self) -> Option<u64> {
-        let mut cache = self.cache.lock().unwrap();
+        let mut cache = self.cache.lock().unwrap_or_else(|err| {
+            error!(error = ?err, "Mutex poisoned");
+            panic!("{}", MUTEX_PANIC)
+        });
         if let Some((id, entry)) = cache.pop_lru() {
             self.total_size_bytes.fetch_sub(
                 entry.metadata.size_bytes,
@@ -65,7 +76,10 @@ impl<T: Clone + 'static> ResponseStore<T> {
     }
 
     pub fn len(&self) -> usize {
-        let cache = self.cache.lock().unwrap();
+        let cache = self.cache.lock().unwrap_or_else(|err| {
+            error!(error = ?err, "Mutex poisoned");
+            panic!("{}", MUTEX_PANIC)
+        });
         cache.len()
     }
 

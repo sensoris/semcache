@@ -9,7 +9,7 @@ use axum::{Router, routing::get, routing::post};
 use std::sync::Arc;
 use tokio::signal;
 use tower_http::services::ServeDir;
-use tracing::info;
+use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
@@ -41,7 +41,10 @@ async fn main() {
 
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
         .await
-        .unwrap();
+        .unwrap_or_else(|err| {
+            error!(error = ?err);
+            panic!("Failed to start listener")
+        });
     info!(
         "semcache-rs application started successfully on port {}",
         port
@@ -50,7 +53,10 @@ async fn main() {
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await
-        .unwrap();
+        .unwrap_or_else(|err| {
+            error!(error = ?err);
+            panic!("Failed to start axum server")
+        });
 }
 
 // Inspired by https://github.com/tokio-rs/axum/blob/main/examples/graceful-shutdown/src/main.rs
