@@ -40,7 +40,7 @@ cmake --install build
 
 ## Docker
 
-The Dockefile uses the base image created using `docker/Dockerfile.faiss`
+The Dockerfile uses the base image created using `docker/Dockerfile.faiss`
 
 Build:
 
