@@ -81,7 +81,7 @@ const config: Config = {
           items: [
             {
               label: 'Getting Started',
-              to: '/semcache/docs/intro',
+              to: '/docs/intro',
             },
             {
               label: 'API Reference',
