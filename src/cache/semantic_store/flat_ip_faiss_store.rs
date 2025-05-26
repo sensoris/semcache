@@ -38,7 +38,9 @@ impl SemanticStore for FlatIPFaissStore {
         top_k: usize,
         similarity_threshold: f32,
     ) -> Result<Vec<u64>, CacheError> {
+        let similarity_threshold = into_cosine_similarity(similarity_threshold);
         let vec = normalize(&vec);
+
         let read_guard = self.faiss_store.read().expect(RW_LOCK_ERROR);
 
         // faiss will return nonsense from a search if it's empty
@@ -82,6 +84,11 @@ impl SemanticStore for FlatIPFaissStore {
         // Add 20% overhead for FAISS index metadata and structures
         (raw_vectors_size as f64 * 1.2) as usize
     }
+}
+
+// takes an internal representation of similarity which is of [0, 1], and rescales it linearly to cosine similarity
+fn into_cosine_similarity(similarity_threshold: f32) -> f32 {
+    similarity_threshold * 2.0 - 1.0
 }
 
 fn find_nearest_ids(search_result: SearchResult, similarity_threshold: f32) -> Vec<u64> {
