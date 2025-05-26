@@ -71,7 +71,8 @@ impl<T: Clone + 'static> Cache<T> {
         self.semantic_store.put(id.into(), embedding)?;
 
         // Evict entries if policy limits are exceeded
-        // TODO (v0): is a while best way to do this? e.g release chunks of memory before checking
+        // TODO (not V0): handle multiple threads attempting to evict simultaneously
+        // maybe this should just trigger an idempotent background job to initiate eviction?
         while self.is_full() {
             info!("CACHE IS FULL, EVICTING!");
             if let Some(evicted_id) = self.response_store.pop() {
