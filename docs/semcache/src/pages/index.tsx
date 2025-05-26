@@ -5,7 +5,7 @@ export default function Home() {
   const history = useHistory();
   
   useEffect(() => {
-    history.replace('/semcache/docs/intro');
+    history.replace('/docs/intro');
   }, [history]);
 
   return null;
