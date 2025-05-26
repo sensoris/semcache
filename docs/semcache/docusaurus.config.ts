@@ -103,16 +103,15 @@ const config: Config = {
           ],
         },
         {
-          title: 'Sensoris',
+          title: 'Semcache',
           items: [
             {
-              label: 'sensoris.io',
-              href: 'https://sensoris.io',
+              label: 'semcache.io',
+              href: 'https://semcache.io',
             },
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} Sensoris.`,
     },
     prism: {
       theme: prismThemes.github,
