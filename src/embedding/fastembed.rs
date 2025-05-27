@@ -1,6 +1,7 @@
 use crate::embedding::error::EmbeddingError;
 use crate::embedding::service::EmbeddingService;
 use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
+use tracing::error;
 
 pub struct FastEmbedService {
     text_embedding: TextEmbedding,
@@ -14,7 +15,10 @@ impl FastEmbedService {
         );
 
         Self {
-            text_embedding: text_embedding.unwrap(),
+            text_embedding: text_embedding.unwrap_or_else(|err| {
+                error!(error = ?err);
+                panic!("failed to init text_embedding")
+            }),
             model_name: EmbeddingModel::AllMiniLML6V2,
         }
     }
