@@ -135,10 +135,7 @@ mod tests {
 
         // set up cache mock and assert we don't reach it
         let mut mock_client = MockClient::new();
-        mock_client
-            .expect_send_completion_request()
-            .times(0)
-            .returning(|_, _, _| unreachable!());
+        mock_client.expect_send_completion_request().times(0);
 
         // put mocked objects into the appstate
         let app_state = Arc::new(AppState {
@@ -166,6 +163,55 @@ mod tests {
         match result {
             Err(CompletionError::InternalCacheError(_)) => {}
             _ => panic!("Expected CompletionError::Internal"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_completions_returns_error_on_embedding_failure() {
+        // given
+        let prompt = "bad prompt";
+
+        // embedding fails
+        let mut mock_embed = MockEmbeddingService::new();
+        mock_embed.expect_embed().times(1).returning(|_| {
+            Err(crate::embedding::error::EmbeddingError::GenerationError(
+                "bumba".into(),
+            ))
+        });
+
+        // cache should not be touched
+        let mut mock_cache = MockCache::new();
+        mock_cache.expect_get_if_present().times(0);
+
+        // client should not be called either
+        let mut mock_client = MockClient::new();
+        mock_client.expect_send_completion_request().times(0);
+
+        let app_state = Arc::new(AppState {
+            embedding_service: Box::new(mock_embed),
+            cache: Box::new(mock_cache),
+            http_client: Box::new(mock_client),
+        });
+
+        let request_body = CompletionRequest {
+            messages: vec![Message {
+                role: "user".into(),
+                content: prompt.into(),
+            }],
+            model: "gpt-4o".into(),
+        };
+
+        let mut headers = HeaderMap::new();
+        headers.insert("Authorization", "Bearer dummy".parse().unwrap());
+        headers.insert("X-LLM-PROXY-UPSTREAM", "http://localhost".parse().unwrap());
+
+        // when
+        let result = super::completions(State(app_state), headers, axum::Json(request_body)).await;
+
+        // then
+        match result {
+            Err(CompletionError::InternalEmbeddingError(_)) => {}
+            _ => panic!("Expected CompletionError::InternalEmbeddingError"),
         }
     }
 }
