@@ -217,6 +217,71 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn should_return_cached_response_on_cache_hit() {
+        // given
+        let prompt = "What is semcache?";
+        let embedding = vec![0.1, 0.2, 0.3];
+        let completion_text = "Semcache is a semantic cache.";
+        let completion_json = format!(
+            r#"{{"choices":[{{"message":{{"content":"{}"}}}}]}}"#,
+            completion_text
+        );
+
+        // embed returns vector
+        let mut mock_embed = MockEmbeddingService::new();
+        mock_embed.expect_embed().times(1).returning({
+            let embedding_clone = embedding.clone();
+            move |_| Ok(embedding_clone.clone())
+        });
+
+        // cache miss
+        let mut mock_cache = MockCache::new();
+        mock_cache.expect_get_if_present().times(1).returning({
+            let completion_clone = completion_json.clone();
+            move |_| Ok(Some(completion_clone.clone()))
+        });
+
+        // verify put is called once
+        mock_cache
+            .expect_put()
+            .times(0)
+            .returning(|_, _| unreachable!());
+
+        // upstream response simulation
+        let mut mock_client = MockClient::new();
+        mock_client
+            .expect_send_completion_request()
+            .times(0)
+            .returning(|_, _, _| unreachable!());
+
+        let app_state = Arc::new(AppState {
+            embedding_service: Box::new(mock_embed),
+            cache: Box::new(mock_cache),
+            http_client: Box::new(mock_client),
+        });
+
+        let request_body = CompletionRequest {
+            messages: vec![Message {
+                role: "user".into(),
+                content: prompt.into(),
+            }],
+            model: "gpt-4o".into(),
+        };
+
+        let mut headers = HeaderMap::new();
+        headers.insert("Authorization", "Bearer dummy".parse().unwrap());
+        headers.insert("X-LLM-PROXY-UPSTREAM", "http://localhost".parse().unwrap());
+
+        // when
+        let result = super::completions(State(app_state), headers, axum::Json(request_body)).await;
+
+        // then
+        assert!(result.is_ok());
+        let response: String = result.as_ref().unwrap().try_into().unwrap();
+        assert_eq!(response, completion_json.clone());
+    }
+
+    #[tokio::test]
     async fn should_call_upstream_on_cache_miss_and_caches_response() {
         // given
         let prompt = "What is semcache?";
