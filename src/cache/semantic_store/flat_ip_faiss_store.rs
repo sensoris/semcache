@@ -133,6 +133,48 @@ mod tests {
     use super::SemanticStore;
 
     #[test]
+    fn get_should_normalize_vectors() {
+        // given
+        let faiss_store = FlatIPFaissStore::new(3);
+        let normalized = vec![0.0, 1.0, 0.0];
+        let normalized_id = 1;
+        faiss_store.put(normalized_id, normalized).unwrap();
+
+        // when
+        // expect vector to get normalized before search
+        let query = vec![0.0, 3.0, 0.0];
+        // set similarity threshold to 1 so that only an exact match is returned
+        let found = faiss_store
+            .get(&query, 1, 1.0)
+            .expect("error in faiss store");
+
+        // then
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0], normalized_id);
+    }
+
+    #[test]
+    fn put_should_normalize_vectors() {
+        // given
+        let faiss_store = FlatIPFaissStore::new(3);
+        // expect the vector to be normalized before adding
+        let unnormalized = vec![0.0, 3.0, 0.0];
+        let unnormalized_id = 1;
+        faiss_store.put(unnormalized_id, unnormalized).unwrap();
+
+        // when
+        let query = vec![0.0, 1.0, 0.0];
+        // set similarity threshold to 1 so that only an exact match is returned
+        let found = faiss_store
+            .get(&query, 1, 1.0)
+            .expect("error in faiss store");
+
+        // then
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0], unnormalized_id);
+    }
+
+    #[test]
     fn get_should_return_empty_when_store_is_empty() {
         // given
         let faiss_store = FlatIPFaissStore::new(3);
