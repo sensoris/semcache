@@ -11,7 +11,7 @@ pub struct HttpClient {
 
 #[async_trait]
 impl Client for HttpClient {
-    async fn send_completion_request(
+    async fn post_http_request(
         &self,
         auth_token: &str,
         upstream_url: Url,

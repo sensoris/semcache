@@ -47,7 +47,7 @@ pub async fn completions(
     let upstream_url = extract_proxy_upstream(&headers)?;
     let reqwest_response = state
         .http_client
-        .send_completion_request(auth_token, upstream_url, &request_body)
+        .post_http_request(auth_token, upstream_url, &request_body)
         .await?;
     let response = CompletionResponse::from_reqwest(reqwest_response).await?;
 
@@ -136,7 +136,7 @@ mod tests {
 
         // set up cache mock and assert we don't reach it
         let mut mock_client = MockClient::new();
-        mock_client.expect_send_completion_request().times(0);
+        mock_client.expect_post_http_request().times(0);
 
         // put mocked objects into the appstate
         let app_state = Arc::new(AppState {
@@ -186,7 +186,7 @@ mod tests {
 
         // client should not be called either
         let mut mock_client = MockClient::new();
-        mock_client.expect_send_completion_request().times(0);
+        mock_client.expect_post_http_request().times(0);
 
         let app_state = Arc::new(AppState {
             embedding_service: Box::new(mock_embed),
@@ -250,7 +250,7 @@ mod tests {
         // verify client is not called
         let mut mock_client = MockClient::new();
         mock_client
-            .expect_send_completion_request()
+            .expect_post_http_request()
             .times(0)
             .returning(|_, _, _| unreachable!());
 
@@ -315,17 +315,13 @@ mod tests {
 
         // upstream response simulation
         let mut mock_client = MockClient::new();
-        mock_client
-            .expect_send_completion_request()
-            .times(1)
-            .returning({
-                let completion_clone = completion_json.clone();
-                move |_, _, _| {
-                    let resp =
-                        reqwest::Response::from(http::Response::new(completion_clone.clone()));
-                    Ok(resp)
-                }
-            });
+        mock_client.expect_post_http_request().times(1).returning({
+            let completion_clone = completion_json.clone();
+            move |_, _, _| {
+                let resp = reqwest::Response::from(http::Response::new(completion_clone.clone()));
+                Ok(resp)
+            }
+        });
 
         let app_state = Arc::new(AppState {
             embedding_service: Box::new(mock_embed),

@@ -7,7 +7,7 @@ use crate::endpoints::chat::dto::CompletionRequest;
 #[cfg_attr(test, mockall::automock)]
 #[async_trait]
 pub trait Client: Send + Sync {
-    async fn send_completion_request(
+    async fn post_http_request(
         &self,
         auth_token: &str,
         upstream_url: Url,
