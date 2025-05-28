@@ -93,3 +93,79 @@ fn extract_proxy_upstream(headers: &HeaderMap) -> Result<Url, CompletionError> {
         ))
     })
 }
+
+#[cfg(test)]
+mod tests {
+
+    use axum::extract::State;
+    use axum::http::HeaderMap;
+    use std::sync::Arc;
+
+    use crate::{
+        app_state::AppState,
+        cache::cache::MockCache,
+        cache::error::CacheError,
+        clients::client::MockClient,
+        embedding::service::MockEmbeddingService,
+        endpoints::chat::dto::{CompletionRequest, Message},
+        endpoints::chat::error::CompletionError,
+        endpoints::chat::handler::completions,
+    };
+
+    #[tokio::test]
+    async fn test_completions_returns_error_on_cache_failure() {
+        // given
+        let prompt = "test prompt";
+        let embedding = vec![0.1, 0.2, 0.3];
+
+        // set up embedding service mock
+        let mut mock_embed = MockEmbeddingService::new();
+        mock_embed
+            .expect_embed()
+            .times(1)
+            .returning(move |_| Ok(embedding.clone()));
+
+        // set up cache mock
+        let mut mock_cache = MockCache::new();
+        mock_cache.expect_get_if_present().returning(|_| {
+            Err(CacheError::FaissRetrievalError(
+                faiss::error::Error::IndexDescription,
+            ))
+        });
+
+        // set up cache mock and assert we don't reach it
+        let mut mock_client = MockClient::new();
+        mock_client
+            .expect_send_completion_request()
+            .times(0)
+            .returning(|_, _, _| unreachable!());
+
+        // put mocked objects into the appstate
+        let app_state = Arc::new(AppState {
+            embedding_service: Box::new(mock_embed),
+            cache: Box::new(mock_cache),
+            http_client: Box::new(mock_client),
+        });
+
+        let request_body = CompletionRequest {
+            messages: vec![Message {
+                role: "user".into(),
+                content: prompt.into(),
+            }],
+            model: "gpt-4o".into(),
+        };
+
+        let mut headers = HeaderMap::new();
+        headers.insert("Authorization", "Bearer dummy".parse().unwrap());
+        headers.insert("X-LLM-PROXY-UPSTREAM", "http://localhost".parse().unwrap());
+
+        // when
+        let result = completions(State(app_state), headers, axum::Json(request_body)).await;
+
+        // then
+        match result {
+            Err(CompletionError::InternalCacheError(_)) => {}
+            _ => panic!("Expected CompletionError::Internal"),
+        }
+    }
+}
