@@ -1,5 +1,5 @@
 use crate::cache::cache::Cache;
-use crate::cache::lru_cache::{EvictionPolicy, LruCache};
+use crate::cache::cache_impl::{CacheImpl, EvictionPolicy};
 use crate::cache::response_store::ResponseStore;
 use crate::cache::semantic_store::flat_ip_faiss_store::FlatIPFaissStore;
 use crate::clients::client::Client;
@@ -25,7 +25,7 @@ impl AppState {
         ));
         let response_store = ResponseStore::new();
         // create cache
-        let cache = Box::new(LruCache::new(
+        let cache = Box::new(CacheImpl::new(
             semantic_store,
             response_store,
             0.9,
@@ -33,7 +33,7 @@ impl AppState {
         ));
         // put service dependencies into app state
         Self {
-             http_client,
+            http_client,
             embedding_service,
             cache,
         }

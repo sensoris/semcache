@@ -15,7 +15,7 @@ pub enum EvictionPolicy {
 
 const TOP_K: usize = 1;
 
-pub struct LruCache<T> {
+pub struct CacheImpl<T> {
     similarity_threshold: f32,
     response_store: ResponseStore<T>,
     semantic_store: Box<dyn SemanticStore>,
@@ -23,7 +23,7 @@ pub struct LruCache<T> {
     eviction_policy: EvictionPolicy,
 }
 
-impl<T> LruCache<T>
+impl<T> CacheImpl<T>
 where
     T: Clone + Send + Sync + 'static,
 {
@@ -60,7 +60,7 @@ where
     }
 }
 
-impl<T> Cache<T> for LruCache<T>
+impl<T> Cache<T> for CacheImpl<T>
 where
     T: Clone + Send + Sync + 'static,
 {
@@ -112,11 +112,11 @@ mod tests {
     use mockall::predicate::eq;
 
     use crate::cache::cache::Cache;
-    use crate::cache::lru_cache::EvictionPolicy;
+    use crate::cache::cache_impl::EvictionPolicy;
     use crate::cache::response_store::ResponseStore;
     use crate::cache::{
+        cache_impl::{CacheImpl, TOP_K},
         error::CacheError,
-        lru_cache::{LruCache, TOP_K},
         semantic_store::semantic_store::MockSemanticStore,
     };
 
@@ -134,7 +134,7 @@ mod tests {
         let response_store = ResponseStore::new();
         response_store.put(0, saved_response.clone());
 
-        let under_test = LruCache::new(
+        let under_test = CacheImpl::new(
             Box::new(mock_semantic_store),
             response_store,
             0.9,
@@ -159,7 +159,7 @@ mod tests {
             .with(eq(embedding.clone()), eq(TOP_K), eq(0.9))
             .return_once(|_, _, _| Ok(vec![]));
 
-        let under_test: LruCache<String> = LruCache::new(
+        let under_test: CacheImpl<String> = CacheImpl::new(
             Box::new(mock_semantic_store),
             ResponseStore::new(),
             0.9,
@@ -191,7 +191,7 @@ mod tests {
 
         let response_store = ResponseStore::new();
 
-        let cache = LruCache::new(
+        let cache = CacheImpl::new(
             Box::new(mock_store),
             response_store,
             0.9,
@@ -219,7 +219,7 @@ mod tests {
             .with(eq(embedding.clone()), eq(TOP_K), eq(0.9))
             .return_once(|_, _, _| Err(CacheError::FaissRetrievalError(Error::ParameterName)));
 
-        let cache: LruCache<String> = LruCache::new(
+        let cache: CacheImpl<String> = CacheImpl::new(
             Box::new(mock_semantic_store),
             ResponseStore::new(),
             0.9,
@@ -250,7 +250,7 @@ mod tests {
 
         let response_store = ResponseStore::new();
 
-        let cache = LruCache::new(
+        let cache = CacheImpl::new(
             Box::new(mock_store),
             response_store,
             0.9,
@@ -288,7 +288,7 @@ mod tests {
 
         let response_store = ResponseStore::new();
 
-        let cache = LruCache::new(
+        let cache = CacheImpl::new(
             Box::new(mock_store),
             response_store,
             0.9,

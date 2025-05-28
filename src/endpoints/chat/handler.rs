@@ -241,13 +241,13 @@ mod tests {
             move |_| Ok(Some(completion_clone.clone()))
         });
 
-        // verify put is called once
+        // verify put is not called
         mock_cache
             .expect_put()
             .times(0)
             .returning(|_, _| unreachable!());
 
-        // upstream response simulation
+        // verify client is not called
         let mut mock_client = MockClient::new();
         mock_client
             .expect_send_completion_request()
