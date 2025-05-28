@@ -33,7 +33,7 @@ impl AppState {
         ));
         // put service dependencies into app state
         Self {
-            http_client: http_client,
+             http_client,
             embedding_service,
             cache,
         }
