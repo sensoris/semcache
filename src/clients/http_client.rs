@@ -34,5 +34,4 @@ impl HttpClient {
         let reqwest_client = reqwest::Client::new();
         Self { reqwest_client }
     }
-
 }

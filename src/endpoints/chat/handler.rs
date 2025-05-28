@@ -45,8 +45,10 @@ pub async fn completions(
     // otherwise, send upstream request
     let auth_token = extract_auth_token(&headers)?;
     let upstream_url = extract_proxy_upstream(&headers)?;
-    let reqwest_response =
-        state.http_client.send_completion_request(auth_token, upstream_url, &request_body).await?;
+    let reqwest_response = state
+        .http_client
+        .send_completion_request(auth_token, upstream_url, &request_body)
+        .await?;
     let response = CompletionResponse::from_reqwest(reqwest_response).await?;
 
     // save returned response in cache
@@ -91,4 +93,3 @@ fn extract_proxy_upstream(headers: &HeaderMap) -> Result<Url, CompletionError> {
         ))
     })
 }
-
