@@ -97,10 +97,9 @@ fn extract_proxy_upstream(headers: &HeaderMap) -> Result<Url, CompletionError> {
 #[cfg(test)]
 mod tests {
 
+    use axum::extract::State;
     use axum::http::{self, HeaderMap};
-    use axum::{extract::State, response::IntoResponse};
     use mockall::predicate::eq;
-    use reqwest::StatusCode;
     use std::sync::Arc;
 
     use crate::{
@@ -115,7 +114,7 @@ mod tests {
     };
 
     #[tokio::test]
-    async fn test_completions_returns_error_on_cache_failure() {
+    async fn should_return_error_on_cache_failure() {
         // given
         let prompt = "test prompt";
         let embedding = vec![0.1, 0.2, 0.3];
@@ -169,7 +168,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_completions_returns_error_on_embedding_failure() {
+    async fn should_return_error_on_embedding_failure() {
         // given
         let prompt = "bad prompt";
 
@@ -218,7 +217,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_completions_calls_upstream_on_cache_miss_and_caches_response() {
+    async fn should_call_upstream_on_cache_miss_and_caches_response() {
         // given
         let prompt = "What is semcache?";
         let embedding = vec![0.1, 0.2, 0.3];
@@ -230,13 +229,10 @@ mod tests {
 
         // embed returns vector
         let mut mock_embed = MockEmbeddingService::new();
-        mock_embed
-            .expect_embed()
-            .times(1)
-            .returning(
-                {
-                    let embedding_clone = embedding.clone();
-                    move |_| Ok(embedding_clone.clone())});
+        mock_embed.expect_embed().times(1).returning({
+            let embedding_clone = embedding.clone();
+            move |_| Ok(embedding_clone.clone())
+        });
 
         // cache miss
         let mut mock_cache = MockCache::new();
@@ -246,7 +242,11 @@ mod tests {
             .returning(|_| Ok(None));
 
         // verify put is called once
-        mock_cache.expect_put().times(1).with(eq(embedding.clone()), eq(completion_json.clone())).returning(|_, _| Ok(()));
+        mock_cache
+            .expect_put()
+            .times(1)
+            .with(eq(embedding.clone()), eq(completion_json.clone()))
+            .returning(|_, _| Ok(()));
 
         // upstream response simulation
         let mut mock_client = MockClient::new();
