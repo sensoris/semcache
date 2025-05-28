@@ -1,5 +1,6 @@
 mod app_state;
 mod cache;
+mod clients;
 mod embedding;
 mod endpoints;
 mod metrics;

@@ -1,31 +1,41 @@
-use crate::cache::cache::{Cache, EvictionPolicy};
+use crate::cache::cache::Cache;
+use crate::cache::cache_impl::{CacheImpl, EvictionPolicy};
 use crate::cache::response_store::ResponseStore;
 use crate::cache::semantic_store::flat_ip_faiss_store::FlatIPFaissStore;
+use crate::clients::client::Client;
+use crate::clients::http_client::HttpClient;
 use crate::embedding::fastembed::FastEmbedService;
 use crate::embedding::service::EmbeddingService;
-use reqwest::Client;
 
 pub struct AppState {
-    pub http_client: Client,
+    pub http_client: Box<dyn Client>,
     pub embedding_service: Box<dyn EmbeddingService>,
     // TODO (not v0): we should probably use base64 or something that isn't string here
-    pub cache: Cache<String>,
+    pub cache: Box<dyn Cache<String>>,
 }
 
 impl AppState {
     pub fn new() -> Self {
-        let http_client = Client::new();
-        let embedding_service = FastEmbedService::new();
-        let semantic_store = FlatIPFaissStore::new(embedding_service.get_dimensionality());
+        // client for upstream LLM requests
+        let http_client = Box::new(HttpClient::new());
+        // cache fields
+        let embedding_service = Box::new(FastEmbedService::new());
+        let semantic_store = Box::new(FlatIPFaissStore::new(
+            embedding_service.get_dimensionality(),
+        ));
+        let response_store = ResponseStore::new();
+        // create cache
+        let cache = Box::new(CacheImpl::new(
+            semantic_store,
+            response_store,
+            0.9,
+            EvictionPolicy::EntryLimit(4),
+        ));
+        // put service dependencies into app state
         Self {
-            http_client: http_client,
-            embedding_service: Box::new(embedding_service),
-            cache: Cache::new(
-                Box::new(semantic_store),
-                ResponseStore::new(),
-                0.9,
-                EvictionPolicy::EntryLimit(4),
-            ),
+            http_client,
+            embedding_service,
+            cache,
         }
     }
 }
