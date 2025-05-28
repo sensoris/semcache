@@ -2,6 +2,7 @@ mod app_state;
 mod cache;
 mod embedding;
 mod endpoints;
+mod clients;
 mod metrics;
 mod utils;
 use app_state::AppState;

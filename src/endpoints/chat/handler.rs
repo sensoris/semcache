@@ -46,7 +46,7 @@ pub async fn completions(
     let auth_token = extract_auth_token(&headers)?;
     let upstream_url = extract_proxy_upstream(&headers)?;
     let reqwest_response =
-        send_request(state.clone(), auth_token, upstream_url, &request_body).await?;
+        state.http_client.send_completion_request(auth_token, upstream_url, &request_body).await?;
     let response = CompletionResponse::from_reqwest(reqwest_response).await?;
 
     // save returned response in cache
@@ -92,19 +92,3 @@ fn extract_proxy_upstream(headers: &HeaderMap) -> Result<Url, CompletionError> {
     })
 }
 
-async fn send_request(
-    state: Arc<AppState>,
-    auth_token: &str,
-    upstream_url: Url,
-    request_body: &CompletionRequest,
-) -> Result<reqwest::Response, reqwest::Error> {
-    let response = state
-        .http_client
-        .post(upstream_url)
-        .header(reqwest::header::AUTHORIZATION, auth_token)
-        .header(reqwest::header::CONTENT_TYPE, "application/json")
-        .json(&request_body)
-        .send()
-        .await?;
-    Ok(response)
-}
