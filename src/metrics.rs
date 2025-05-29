@@ -20,11 +20,12 @@ pub static CHAT_COMPLETIONS: LazyLock<IntCounter> = LazyLock::new(|| {
 });
 
 pub static MEM_USAGE_KB: LazyLock<IntGauge> = LazyLock::new(|| {
-    register_int_gauge!("memory usage (kb)", "Application memory usage in kilobytes")
-        .unwrap_or_else(|err| {
+    register_int_gauge!("memory_usage", "Application memory usage in kilobytes").unwrap_or_else(
+        |err| {
             error!(error = ?err);
             panic!("Issue creating memory usage metric")
-        })
+        },
+    )
 });
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
@@ -56,8 +57,8 @@ pub fn metrics() -> MetricsResponse {
             chart_type: ChartType::Line,
         },
         Metrics {
-            name: "Memory usage (kb)".to_string(),
-            value: MEM_USAGE_KB.get(),
+            name: "Memory usage (mb)".to_string(),
+            value: MEM_USAGE_KB.get() / 1024,
             chart_type: ChartType::Line,
         },
     ];
@@ -105,7 +106,7 @@ fn start_metrics_collection() {
 fn update_mem_usage_metric() {
     let mut sys = System::new();
     sys.refresh_memory();
-    MEM_USAGE_KB.set(sys.used_memory() as i64);
+    MEM_USAGE_KB.set((sys.used_memory() / 1024) as i64);
 }
 
 fn history() -> Vec<MetricsResponse> {
