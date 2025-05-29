@@ -15,7 +15,7 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new() -> Self {
+    pub fn new(semantic_threshold: f32) -> Self {
         // client for upstream LLM requests
         let http_client = Box::new(HttpClient::new());
         // cache fields
@@ -28,7 +28,7 @@ impl AppState {
         let cache = Box::new(CacheImpl::new(
             semantic_store,
             response_store,
-            0.9,
+            semantic_threshold,
             EvictionPolicy::EntryLimit(4),
         ));
         // put service dependencies into app state

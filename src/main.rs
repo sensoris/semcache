@@ -1,28 +1,38 @@
 mod app_state;
 mod cache;
 mod clients;
+mod config;
 mod embedding;
 mod endpoints;
 mod metrics;
 mod utils;
+
 use app_state::AppState;
 use axum::{Router, routing::get, routing::post};
+use config::{get_log_level, get_port, get_similarity_threshold};
 use std::sync::Arc;
 use tokio::signal;
 use tower_http::services::ServeDir;
 use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
 
+const CONFIG_FILE: &'static str = "config.yaml";
+
 #[tokio::main]
 async fn main() {
-    // TODO (after config file ticket): this should come from config
+    let config = config::from_file(CONFIG_FILE);
+
     tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::new("info"))
+        .with_env_filter(EnvFilter::new(
+            get_log_level(&config).unwrap_or("debug".into()),
+        ))
         .init();
 
     metrics::initialize_metrics_collection();
 
-    let shared_state = Arc::new(AppState::new());
+    let shared_state = Arc::new(AppState::new(
+        get_similarity_threshold(&config).unwrap_or(0.90) as f32,
+    ));
 
     let app = Router::new()
         .route("/", get(|| async { "Hello, World!" }))
@@ -38,7 +48,7 @@ async fn main() {
         .nest_service("/static", ServeDir::new("assets"))
         .with_state(shared_state);
 
-    let port = 8080;
+    let port = get_port(&config).unwrap_or(8080);
 
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
         .await
