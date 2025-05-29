@@ -8,6 +8,7 @@ const SIMILARITY_THRESHOLD_KEY: &'static str = "similarity_threshold";
 pub fn from_file(config_file_name: &str) -> Config {
     Config::builder()
         .add_source(config::File::with_name(&config_file_name))
+        .add_source(config::Environment::with_prefix("SEMCACHE").convert_case(config::Case::Snake))
         .build()
         .unwrap_or_else(|err| {
             error!(error = ?err, "Failed to parse config from file {config_file_name}");
