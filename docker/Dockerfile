@@ -18,10 +18,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy FAISS runtime artifacts and built binary
+# Copy FAISS runtime artifacts, built binary, and project files needed at runtime
 COPY --from=builder /usr/local /usr/local
 COPY --from=builder /app/target/release/semcache-rs /usr/local/bin/semcache-rs
 COPY ./assets ./app/assets
+COPY ./config.yaml ./app/config.yaml
 
 # Point linker to faiss installation
 ENV LD_LIBRARY_PATH="/usr/local/lib"
