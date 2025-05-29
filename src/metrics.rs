@@ -38,7 +38,7 @@ pub enum ChartType {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Metrics {
     pub name: String,
-    pub value: u64,
+    pub value: i64,
     pub chart_type: ChartType,
 }
 
@@ -49,11 +49,18 @@ pub struct MetricsResponse {
 }
 
 pub fn metrics() -> MetricsResponse {
-    let metrics = vec![Metrics {
-        name: "Chat completion requests".to_string(),
-        value: CHAT_COMPLETIONS.get(),
-        chart_type: ChartType::Line,
-    }];
+    let metrics = vec![
+        Metrics {
+            name: "Chat completion requests".to_string(),
+            value: CHAT_COMPLETIONS.get() as i64,
+            chart_type: ChartType::Line,
+        },
+        Metrics {
+            name: "Memory usage (kb)".to_string(),
+            value: MEM_USAGE_KB.get(),
+            chart_type: ChartType::Line,
+        },
+    ];
 
     MetricsResponse {
         timestamp: Utc::now(),
