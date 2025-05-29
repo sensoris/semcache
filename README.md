@@ -61,7 +61,7 @@ docker run -p 8080:8080 --env-file my_env_file.env semcache-rs
 ```
 
 For an example of how your env could look, have a look at docker/example.env
-In order to see which configuration values are currently supported, look at the config.yaml file. An environment variable maps to a configuration key by stripping the SEMCACHE\_ prefix, and converting the remainin string to lowercase.
+In order to see which configuration values are currently supported, look at the config.yaml file. An environment variable maps to a configuration key by stripping the SEMCACHE\_ prefix, and converting the remaining string to lowercase.
 
 So in order to override the "port" configuration, define SEMCACHE_PORT in your environment file.
 
