@@ -38,8 +38,6 @@ impl<T: Clone + 'static> ResponseStore<T> {
             panic!("{}", MUTEX_PANIC)
         });
         let response = &cache.get_mut(&id)?.response;
-        // TODO (v0): consider replacing clone with pointer to memory of this response?
-        // maybe shit actually since what if it gets evicted whilst we return it type shi
         Some(response.clone())
     }
 
