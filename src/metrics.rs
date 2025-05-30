@@ -5,10 +5,11 @@ use serde_json::{self};
 use std::fs;
 use std::path::Path;
 use std::sync::LazyLock;
-use sysinfo::System;
 use tokio::task;
 use tokio::time::{self, Duration};
-use tracing::error;
+use tracing::{error, warn};
+
+use crate::utils::cgroup_utils;
 
 const METRICS_HISTORY_PATH: &str = "assets/metrics_history.json";
 
@@ -104,9 +105,10 @@ fn start_metrics_collection() {
 }
 
 fn update_mem_usage_metric() {
-    let mut sys = System::new();
-    sys.refresh_memory();
-    MEM_USAGE_KB.set((sys.used_memory() / 1024) as i64);
+    match cgroup_utils::read_cgroup_v2_memory_kb() {
+        Some(used_memory_kb) => MEM_USAGE_KB.set((used_memory_kb) as i64),
+        None => warn!("could not report current memory usage"),
+    }
 }
 
 fn history() -> Vec<MetricsResponse> {
