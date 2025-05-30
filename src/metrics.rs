@@ -21,12 +21,14 @@ pub static CHAT_COMPLETIONS: LazyLock<IntCounter> = LazyLock::new(|| {
 });
 
 pub static MEM_USAGE_KB: LazyLock<IntGauge> = LazyLock::new(|| {
-    register_int_gauge!("memory_usage", "Application memory usage in kilobytes (only available in Linux systems)").unwrap_or_else(
-        |err| {
-            error!(error = ?err);
-            panic!("Issue creating memory usage metric")
-        },
+    register_int_gauge!(
+        "memory_usage",
+        "Application memory usage in kilobytes (only available in Linux systems)"
     )
+    .unwrap_or_else(|err| {
+        error!(error = ?err);
+        panic!("Issue creating memory usage metric")
+    })
 });
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
