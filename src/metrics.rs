@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use prometheus::{IntCounter, register_int_counter};
+use prometheus::{IntCounter, IntGauge, register_int_counter, register_int_gauge};
 use serde::{Deserialize, Serialize};
 use serde_json::{self};
 use std::fs;
@@ -7,17 +7,28 @@ use std::path::Path;
 use std::sync::LazyLock;
 use tokio::task;
 use tokio::time::{self, Duration};
+use tracing::{debug, error};
+
+use crate::utils::cgroup_utils;
 
 const METRICS_HISTORY_PATH: &str = "assets/metrics_history.json";
 
-// Note:
-// Saw online that we shouldn't be using lazy_static and instead use the new built in LazyLock
-// But I found it very complicated to understand how to use it and the prometheus examples
-// used lazy_static and works smoothly
-// https://github.com/tikv/rust-prometheus/blob/master/examples/example_int_metrics.rs
-// https://www.reddit.com/r/rust/comments/1iisfzg/lazycell_vs_lazylock_vs_oncecell_vs_oncelock_vs/
 pub static CHAT_COMPLETIONS: LazyLock<IntCounter> = LazyLock::new(|| {
-    register_int_counter!("incoming_requests", "Incoming Requests").expect("metric can be created")
+    register_int_counter!("incoming_requests", "Incoming Requests").unwrap_or_else(|err| {
+        error!(error = ?err);
+        panic!("Issue creating chat completions usage metric")
+    })
+});
+
+pub static MEM_USAGE_KB: LazyLock<IntGauge> = LazyLock::new(|| {
+    register_int_gauge!(
+        "memory_usage",
+        "Application memory usage in kilobytes (only available in Linux systems)"
+    )
+    .unwrap_or_else(|err| {
+        error!(error = ?err);
+        panic!("Issue creating memory usage metric")
+    })
 });
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
@@ -31,7 +42,7 @@ pub enum ChartType {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Metrics {
     pub name: String,
-    pub value: u64,
+    pub value: i64,
     pub chart_type: ChartType,
 }
 
@@ -42,11 +53,18 @@ pub struct MetricsResponse {
 }
 
 pub fn metrics() -> MetricsResponse {
-    let metrics = vec![Metrics {
-        name: "Chat completion requests".to_string(),
-        value: CHAT_COMPLETIONS.get(),
-        chart_type: ChartType::Line,
-    }];
+    let metrics = vec![
+        Metrics {
+            name: "Chat completion requests".to_string(),
+            value: CHAT_COMPLETIONS.get() as i64,
+            chart_type: ChartType::Line,
+        },
+        Metrics {
+            name: "Memory usage (mb) - only available in Linux systems".to_string(),
+            value: MEM_USAGE_KB.get() / 1024,
+            chart_type: ChartType::Line,
+        },
+    ];
 
     MetricsResponse {
         timestamp: Utc::now(),
@@ -71,8 +89,10 @@ fn start_metrics_collection() {
 
         loop {
             interval.tick().await;
-            let current_metrics = metrics();
 
+            update_mem_usage_metric();
+
+            let current_metrics = metrics();
             let mut history = history();
 
             history.push(current_metrics);
@@ -84,6 +104,13 @@ fn start_metrics_collection() {
             }
         }
     });
+}
+
+fn update_mem_usage_metric() {
+    match cgroup_utils::read_cgroup_v2_memory_kb() {
+        Some(used_memory_kb) => MEM_USAGE_KB.set((used_memory_kb) as i64),
+        None => debug!("could not report current memory usage"),
+    }
 }
 
 fn history() -> Vec<MetricsResponse> {
