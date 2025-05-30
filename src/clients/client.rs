@@ -1,7 +1,7 @@
 use async_trait::async_trait;
+use axum::http::HeaderMap;
+use serde_json::Value;
 use url::Url;
-
-use crate::endpoints::chat::dto::CompletionRequest;
 
 //TODO (V0): use the test config attribute for automocks to avoid generating mock impls for non test code
 #[cfg_attr(test, mockall::automock)]
@@ -9,8 +9,8 @@ use crate::endpoints::chat::dto::CompletionRequest;
 pub trait Client: Send + Sync {
     async fn post_http_request(
         &self,
-        auth_token: &str,
+        header_map: HeaderMap,
         upstream_url: Url,
-        request_body: &CompletionRequest,
+        request_body: &Value,
     ) -> Result<reqwest::Response, reqwest::Error>;
 }

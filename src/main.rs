@@ -5,8 +5,12 @@ mod config;
 mod embedding;
 mod endpoints;
 mod metrics;
+mod providers;
 mod utils;
-
+use crate::providers::Provider;
+use crate::providers::anthropic::Anthropic;
+use crate::providers::generic::Generic;
+use crate::providers::openai::OpenAI;
 use app_state::AppState;
 use axum::{Router, routing::get, routing::post};
 use config::{get_log_level, get_port, get_similarity_threshold};
@@ -36,10 +40,21 @@ async fn main() {
 
     let app = Router::new()
         .route("/", get(|| async { "Hello, World!" }))
+        // Provider-specific endpoints
         .route(
-            "/chat/completions",
-            post(endpoints::chat::handler::completions),
+            OpenAI.path(),
+            post(endpoints::providers::handlers::openai_handler),
         )
+        .route(
+            Anthropic.path(),
+            post(endpoints::providers::handlers::anthropic_handler),
+        )
+        // Generic endpoint
+        .route(
+            Generic.path(),
+            post(endpoints::providers::handlers::generic_handler),
+        )
+        // Admin and monitoring
         .route("/admin", get(endpoints::admin::handler::dashboard))
         .route(
             "/api/metrics",
@@ -70,7 +85,6 @@ async fn main() {
         });
 }
 
-// Inspired by https://github.com/tokio-rs/axum/blob/main/examples/graceful-shutdown/src/main.rs
 async fn shutdown_signal() {
     let ctrl_c = async {
         signal::ctrl_c()

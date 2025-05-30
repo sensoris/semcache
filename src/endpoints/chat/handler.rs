@@ -1,117 +1,127 @@
+use axum::http::HeaderName;
 use axum::{
     extract::{Json, State},
-    http::header::HeaderMap,
+    http::{StatusCode, header::HeaderMap},
+    response::IntoResponse,
 };
-use std::sync::Arc;
-use tracing::info;
+use serde_json::Value;
+use std::sync::{Arc, LazyLock};
+use tracing::{debug, info};
 
+use super::error::CompletionError;
 use crate::app_state::AppState;
 use crate::metrics::CHAT_COMPLETIONS;
-use url::Url;
+use crate::providers::Provider;
+use crate::utils::json_extract::extract_prompt_from_path;
 
-use super::{
-    dto::{CompletionRequest, CompletionResponse},
-    error::CompletionError,
-};
+// HEADERS
+static PROXY_UPSTREAM_HEADER: HeaderName = HeaderName::from_static("x-llm-proxy-upstream");
+static PROXY_PROMPT_LOCATION_HEADER: HeaderName = HeaderName::from_static("x-llm-prompt");
+static TE_HEADER: HeaderName = HeaderName::from_static("te");
+static CONNECTION_HEADER: HeaderName = HeaderName::from_static("connection");
+static TRAILER_HEADER: HeaderName = HeaderName::from_static("trailer");
+static HOP_HEADERS: LazyLock<[HeaderName; 9]> = LazyLock::new(|| {
+    [
+        CONNECTION_HEADER.clone(),
+        TE_HEADER.clone(),
+        TRAILER_HEADER.clone(),
+        HeaderName::from_static("keep-alive"),
+        HeaderName::from_static("proxy-connection"),
+        HeaderName::from_static("proxy-authenticate"),
+        HeaderName::from_static("proxy-authorization"),
+        HeaderName::from_static("transfer-encoding"),
+        HeaderName::from_static("upgrade"),
+    ]
+});
 
-// CONSTANTS
-const PROXY_UPSTREAM_HEADER: &'static str = "X-LLM-PROXY-UPSTREAM";
-
-pub async fn completions(
+pub async fn completions<P: Provider>(
     State(state): State<Arc<AppState>>,
     headers: HeaderMap,
-    Json(request_body): Json<CompletionRequest>,
-) -> Result<CompletionResponse, CompletionError> {
+    request_body: Json<Value>,
+    provider: P,
+) -> Result<impl IntoResponse, CompletionError> {
     CHAT_COMPLETIONS.inc();
 
-    let prompt = &request_body
-        .messages
-        .get(0)
-        .ok_or(CompletionError::InvalidRequest(
-            "No messages in request".into(),
-        ))?
-        .content;
-
+    let prompt = extract_prompt_from_path(&request_body, provider.prompt_path())?;
+    info!("prompt: {prompt}");
     let embedding = state.embedding_service.embed(&prompt)?;
 
-    // return early if cache hit
     if let Some(saved_response) = state.cache.get_if_present(&embedding)? {
         info!("CACHE HIT");
-        return Ok(CompletionResponse::from_cache(saved_response)?);
+        // Return cached response with 200 OK and minimal headers
+        let mut response_headers = HeaderMap::new();
+        response_headers.insert("X-Cache-Status", "hit".parse().unwrap());
+        return Ok((StatusCode::OK, response_headers, saved_response));
     };
 
     info!("CACHE_MISS");
 
     // otherwise, send upstream request
-    let auth_token = extract_auth_token(&headers)?;
-    let upstream_url = extract_proxy_upstream(&headers)?;
-    let reqwest_response = state
+    let upstream_url = provider.upstream_url();
+    let upstream_headers = prepare_upstream_headers(headers, provider);
+
+    let upstream_response = state
         .http_client
-        .post_http_request(auth_token, upstream_url, &request_body)
+        .post_http_request(upstream_headers, upstream_url.clone(), &request_body)
         .await?;
-    let response = CompletionResponse::from_reqwest(reqwest_response).await?;
 
-    // save returned response in cache
-    let response_string: String = (&response).try_into()?;
-    state.cache.put(embedding, response_string)?;
+    let mut response_headers = upstream_response.headers().clone();
+    let status = upstream_response.status();
 
-    Ok(response)
+    // Get the body as bytes (not JSON)
+    let body_bytes = upstream_response
+        .bytes()
+        .await
+        .map_err(|e| CompletionError::Upstream(e))?;
+
+    // todo, am converting into string, maybe its okay to return bytes?
+    let response_string = String::from_utf8_lossy(&body_bytes).to_string();
+    state.cache.put(embedding, response_string.clone())?;
+
+    // todo prepare response headers
+    remove_hop_headers(&mut response_headers);
+
+    Ok((status, response_headers, response_string))
 }
 
-fn extract_auth_token(headers: &HeaderMap) -> Result<&str, CompletionError> {
-    // extract auth token
-    headers
-        .get(axum::http::header::AUTHORIZATION)
-        .ok_or(CompletionError::InvalidRequest(String::from(
-            "Missing authorization header",
-        )))?
-        .to_str()
-        .map_err(|error| {
-            CompletionError::InvalidRequest(format!(
-                "authorization header could not be parsed as a string, {}",
-                error
-            ))
-        })
+fn prepare_upstream_headers<P: Provider>(headers: HeaderMap, provider: P) -> HeaderMap {
+    let mut upstream_headers = headers.clone();
+
+    remove_hop_headers(&mut upstream_headers);
+
+    // remove semcache headers
+    upstream_headers.remove(&PROXY_UPSTREAM_HEADER);
+    upstream_headers.remove(&PROXY_PROMPT_LOCATION_HEADER);
+
+    // add host for request to be accepted
+    upstream_headers.insert("host", provider.header_host());
+    // todo why is this causing issues?
+    upstream_headers.remove("content-length");
+    upstream_headers
 }
 
-fn extract_proxy_upstream(headers: &HeaderMap) -> Result<Url, CompletionError> {
-    let raw = headers.get(PROXY_UPSTREAM_HEADER).ok_or_else(|| {
-        CompletionError::InvalidRequest(format!("Missing {} header", PROXY_UPSTREAM_HEADER))
-    })?;
+fn remove_hop_headers(headers: &mut HeaderMap) {
+    debug!("Removing hop headers");
 
-    let url_str = raw.to_str().map_err(|e| {
-        CompletionError::InvalidRequest(format!(
-            "{} header is not valid UTF-8: {}",
-            PROXY_UPSTREAM_HEADER, e
-        ))
-    })?;
-
-    Url::parse(url_str).map_err(|e| {
-        CompletionError::InvalidRequest(format!(
-            "{} header is not a valid URL: {}, error: {}",
-            PROXY_UPSTREAM_HEADER, url_str, e
-        ))
-    })
+    for header in &*HOP_HEADERS {
+        headers.remove(header);
+    }
 }
 
 #[cfg(test)]
 mod tests {
-
-    use axum::extract::State;
-    use axum::http::{self, HeaderMap};
-    use mockall::predicate::eq;
-    use std::sync::Arc;
-
+    use crate::providers::openai::OpenAI;
     use crate::{
-        app_state::AppState,
-        cache::cache::MockCache,
-        cache::error::CacheError,
-        clients::client::MockClient,
-        embedding::service::MockEmbeddingService,
-        endpoints::chat::dto::{CompletionRequest, Message},
-        endpoints::chat::error::CompletionError,
-        endpoints::chat::handler::completions,
+        app_state::AppState, cache::cache::MockCache, cache::error::CacheError,
+        clients::client::MockClient, embedding::service::MockEmbeddingService,
+        endpoints::chat::error::CompletionError, endpoints::chat::handler::completions,
     };
+    use axum::extract::State;
+    use axum::http::{self, HeaderMap, StatusCode};
+    use axum::response::{IntoResponse, Response};
+    use mockall::predicate::eq;
+    use serde_json::json;
+    use std::sync::Arc;
 
     #[tokio::test]
     async fn should_return_error_on_cache_failure() {
@@ -145,20 +155,20 @@ mod tests {
             http_client: Box::new(mock_client),
         });
 
-        let request_body = CompletionRequest {
-            messages: vec![Message {
-                role: "user".into(),
-                content: prompt.into(),
+        let request_body = json!({
+            "messages": [{
+                "role": "user",
+                "content": prompt
             }],
-            model: "gpt-4o".into(),
-        };
+            "model": "gpt-4"
+        });
 
         let mut headers = HeaderMap::new();
         headers.insert("Authorization", "Bearer dummy".parse().unwrap());
         headers.insert("X-LLM-PROXY-UPSTREAM", "http://localhost".parse().unwrap());
 
         // when
-        let result = completions(State(app_state), headers, axum::Json(request_body)).await;
+        let result = completions(State(app_state), headers, axum::Json(request_body), OpenAI).await;
 
         // then
         match result {
@@ -194,22 +204,20 @@ mod tests {
             http_client: Box::new(mock_client),
         });
 
-        let request_body = CompletionRequest {
-            messages: vec![Message {
-                role: "user".into(),
-                content: prompt.into(),
+        let request_body = json!({
+            "messages": [{
+                "role": "user",
+                "content": prompt
             }],
-            model: "gpt-4o".into(),
-        };
+            "model": "gpt-4"
+        });
 
         let mut headers = HeaderMap::new();
         headers.insert("Authorization", "Bearer dummy".parse().unwrap());
         headers.insert("X-LLM-PROXY-UPSTREAM", "http://localhost".parse().unwrap());
 
-        // when
-        let result = super::completions(State(app_state), headers, axum::Json(request_body)).await;
+        let result = completions(State(app_state), headers, axum::Json(request_body), OpenAI).await;
 
-        // then
         match result {
             Err(CompletionError::InternalEmbeddingError(_)) => {}
             _ => panic!("Expected CompletionError::InternalEmbeddingError"),
@@ -260,25 +268,27 @@ mod tests {
             http_client: Box::new(mock_client),
         });
 
-        let request_body = CompletionRequest {
-            messages: vec![Message {
-                role: "user".into(),
-                content: prompt.into(),
+        let request_body = json!({
+            "messages": [{
+                "role": "user",
+                "content": prompt
             }],
-            model: "gpt-4o".into(),
-        };
+            "model": "gpt-4"
+        });
 
         let mut headers = HeaderMap::new();
         headers.insert("Authorization", "Bearer dummy".parse().unwrap());
         headers.insert("X-LLM-PROXY-UPSTREAM", "http://localhost".parse().unwrap());
 
         // when
-        let result = super::completions(State(app_state), headers, axum::Json(request_body)).await;
+        let result = completions(State(app_state), headers, axum::Json(request_body), OpenAI).await;
 
         // then
         assert!(result.is_ok());
-        let response: String = result.as_ref().unwrap().try_into().unwrap();
-        assert_eq!(response, completion_json.clone());
+        let response = result.unwrap().into_response();
+        assert_eq!(response.status(), StatusCode::OK);
+        let response_json = extract_json_response(response).await;
+        assert_eq!(response_json, completion_json);
     }
 
     #[tokio::test]
@@ -329,24 +339,32 @@ mod tests {
             http_client: Box::new(mock_client),
         });
 
-        let request_body = CompletionRequest {
-            messages: vec![Message {
-                role: "user".into(),
-                content: prompt.into(),
+        let request_body = json!({
+            "messages": [{
+                "role": "user",
+                "content": prompt
             }],
-            model: "gpt-4o".into(),
-        };
+            "model": "gpt-4"
+        });
 
         let mut headers = HeaderMap::new();
         headers.insert("Authorization", "Bearer dummy".parse().unwrap());
         headers.insert("X-LLM-PROXY-UPSTREAM", "http://localhost".parse().unwrap());
 
-        // when
-        let result = super::completions(State(app_state), headers, axum::Json(request_body)).await;
+        let result = completions(State(app_state), headers, axum::Json(request_body), OpenAI).await;
 
         // then
         assert!(result.is_ok());
-        let response: String = result.as_ref().unwrap().try_into().unwrap();
-        assert_eq!(response, completion_json.clone());
+        let response = result.unwrap().into_response();
+        assert_eq!(response.status(), StatusCode::OK);
+        let response_json = extract_json_response(response).await;
+        assert_eq!(response_json, completion_json);
+    }
+
+    async fn extract_json_response(response: Response) -> String {
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        String::from_utf8(body.to_vec()).unwrap()
     }
 }
