@@ -10,7 +10,6 @@ use crate::embedding::service::EmbeddingService;
 pub struct AppState {
     pub http_client: Box<dyn Client>,
     pub embedding_service: Box<dyn EmbeddingService>,
-    // TODO (not v0): we should probably use base64 or something that isn't string here
     pub cache: Box<dyn Cache<String>>,
 }
 

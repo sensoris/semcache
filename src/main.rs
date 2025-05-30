@@ -5,9 +5,17 @@ mod config;
 mod embedding;
 mod endpoints;
 mod metrics;
+mod providers;
 mod utils;
-
+use crate::endpoints::chat::provider_handlers::{
+    anthropic_handler, generic_handler, openai_handler,
+};
+use crate::providers::Provider;
+use crate::providers::anthropic::Anthropic;
+use crate::providers::generic::Generic;
+use crate::providers::openai::OpenAI;
 use app_state::AppState;
+use axum::http::StatusCode;
 use axum::{Router, routing::get, routing::post};
 use config::{get_log_level, get_port, get_similarity_threshold};
 use std::sync::Arc;
@@ -35,11 +43,12 @@ async fn main() {
     ));
 
     let app = Router::new()
-        .route("/", get(|| async { "Hello, World!" }))
-        .route(
-            "/chat/completions",
-            post(endpoints::chat::handler::completions),
-        )
+        .route("/", get(|| async { StatusCode::OK }))
+        // Provider endpoints
+        .route(OpenAI.path(), post(openai_handler))
+        .route(Anthropic.path(), post(anthropic_handler))
+        .route(Generic.path(), post(generic_handler))
+        // Admin and monitoring
         .route("/admin", get(endpoints::admin::handler::dashboard))
         .route(
             "/api/metrics",
@@ -70,7 +79,6 @@ async fn main() {
         });
 }
 
-// Inspired by https://github.com/tokio-rs/axum/blob/main/examples/graceful-shutdown/src/main.rs
 async fn shutdown_signal() {
     let ctrl_c = async {
         signal::ctrl_c()
