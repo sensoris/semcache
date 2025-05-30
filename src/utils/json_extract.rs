@@ -1,11 +1,10 @@
 use crate::endpoints::chat::error::CompletionError;
-// todo axum vs cerde json?
 use axum::Json;
 use jsonpath_rust::JsonPath;
 use serde_json::Value;
 
 pub fn extract_prompt_from_path(data: &Json<Value>, path: &str) -> Result<String, CompletionError> {
-    let query_results = data.query_with_path(path).unwrap();
+    let query_results = data.query_with_path(path)?;
 
     query_results
         .last()
@@ -13,7 +12,7 @@ pub fn extract_prompt_from_path(data: &Json<Value>, path: &str) -> Result<String
             CompletionError::InvalidRequest(format!("No element found at path '{}'", path))
         })
         .and_then(|last_query_ref| {
-            let value_ref: &Value = last_query_ref.clone().val(); // Get the inner &Value
+            let value_ref: &Value = last_query_ref.clone().val();
 
             value_ref.as_str().map(str::to_owned).ok_or_else(|| {
                 CompletionError::InvalidRequest(format!(

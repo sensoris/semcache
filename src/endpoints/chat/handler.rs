@@ -17,20 +17,19 @@ use crate::utils::json_extract::extract_prompt_from_path;
 // HEADERS
 static PROXY_UPSTREAM_HEADER: HeaderName = HeaderName::from_static("x-llm-proxy-upstream");
 static PROXY_PROMPT_LOCATION_HEADER: HeaderName = HeaderName::from_static("x-llm-prompt");
-static TE_HEADER: HeaderName = HeaderName::from_static("te");
-static CONNECTION_HEADER: HeaderName = HeaderName::from_static("connection");
-static TRAILER_HEADER: HeaderName = HeaderName::from_static("trailer");
-static HOP_HEADERS: LazyLock<[HeaderName; 9]> = LazyLock::new(|| {
+static HOP_HEADERS: LazyLock<[HeaderName; 10]> = LazyLock::new(|| {
     [
-        CONNECTION_HEADER.clone(),
-        TE_HEADER.clone(),
-        TRAILER_HEADER.clone(),
+        HeaderName::from_static("connection"),
+        HeaderName::from_static("te"),
+        HeaderName::from_static("trailer"),
         HeaderName::from_static("keep-alive"),
         HeaderName::from_static("proxy-connection"),
         HeaderName::from_static("proxy-authenticate"),
         HeaderName::from_static("proxy-authorization"),
         HeaderName::from_static("transfer-encoding"),
         HeaderName::from_static("upgrade"),
+        // todo - why do we need to remove this?
+        HeaderName::from_static("content-length"),
     ]
 });
 
@@ -76,6 +75,7 @@ pub async fn completions<P: Provider>(
 
     // todo, am converting into string, maybe its okay to return bytes?
     let response_string = String::from_utf8_lossy(&body_bytes).to_string();
+
     state.cache.put(embedding, response_string.clone())?;
 
     // todo prepare response headers
@@ -95,8 +95,6 @@ fn prepare_upstream_headers<P: Provider>(headers: HeaderMap, provider: P) -> Hea
 
     // add host for request to be accepted
     upstream_headers.insert("host", provider.header_host());
-    // todo why is this causing issues?
-    upstream_headers.remove("content-length");
     upstream_headers
 }
 
@@ -110,6 +108,7 @@ fn remove_hop_headers(headers: &mut HeaderMap) {
 
 #[cfg(test)]
 mod tests {
+    use crate::providers::anthropic::Anthropic;
     use crate::providers::openai::OpenAI;
     use crate::{
         app_state::AppState, cache::cache::MockCache, cache::error::CacheError,
@@ -186,7 +185,7 @@ mod tests {
         let mut mock_embed = MockEmbeddingService::new();
         mock_embed.expect_embed().times(1).returning(|_| {
             Err(crate::embedding::error::EmbeddingError::GenerationError(
-                "bumba".into(),
+                "Embedding error".into(),
             ))
         });
 
@@ -237,14 +236,14 @@ mod tests {
 
         // embed returns vector
         let mut mock_embed = MockEmbeddingService::new();
-        mock_embed.expect_embed().times(1).returning({
+        mock_embed.expect_embed().times(2).returning({
             let embedding_clone = embedding.clone();
             move |_| Ok(embedding_clone.clone())
         });
 
         // cache miss
         let mut mock_cache = MockCache::new();
-        mock_cache.expect_get_if_present().times(1).returning({
+        mock_cache.expect_get_if_present().times(2).returning({
             let completion_clone = completion_json.clone();
             move |_| Ok(Some(completion_clone.clone()))
         });
@@ -268,6 +267,7 @@ mod tests {
             http_client: Box::new(mock_client),
         });
 
+        // Test OpenAI message
         let request_body = json!({
             "messages": [{
                 "role": "user",
@@ -278,10 +278,42 @@ mod tests {
 
         let mut headers = HeaderMap::new();
         headers.insert("Authorization", "Bearer dummy".parse().unwrap());
-        headers.insert("X-LLM-PROXY-UPSTREAM", "http://localhost".parse().unwrap());
+
+        let result = completions(
+            State(app_state.clone()),
+            headers,
+            axum::Json(request_body),
+            OpenAI,
+        )
+        .await;
+
+        assert!(result.is_ok());
+        let response = result.unwrap().into_response();
+        assert_eq!(response.status(), StatusCode::OK);
+        let response_json = extract_json_response(response).await;
+        assert_eq!(response_json, completion_json);
+
+        // Test Anthropic endpoint
+        let request_body = json!({
+            "model": "claude-3-5-sonnet-20241022",
+            "max_tokens": 1024,
+            "messages": [{
+                "role": "user",
+                "content": prompt
+            }]
+        });
+
+        let mut headers = HeaderMap::new();
+        headers.insert("Authorization", "Bearer dummy".parse().unwrap());
 
         // when
-        let result = completions(State(app_state), headers, axum::Json(request_body), OpenAI).await;
+        let result = completions(
+            State(app_state),
+            headers,
+            axum::Json(request_body),
+            Anthropic,
+        )
+        .await;
 
         // then
         assert!(result.is_ok());

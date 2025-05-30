@@ -127,7 +127,6 @@ fn find_nearest_ids(search_result: SearchResult, similarity_threshold: f32) -> V
 
 #[cfg(test)]
 mod tests {
-
     use crate::cache::semantic_store::flat_ip_faiss_store::FlatIPFaissStore;
 
     use super::SemanticStore;

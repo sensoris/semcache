@@ -17,12 +17,12 @@ impl Provider for OpenAI {
         HeaderValue::from_static("api.openai.com")
     }
 
+    fn path(&self) -> &'static str {
+        "/v1/chat/completions"
+    }
+
     // We refer to the last message's content as the prompt and key in our cache
     fn prompt_path(&self) -> &'static str {
         "$.messages[-1].content"
-    }
-
-    fn path(&self) -> &'static str {
-        "/v1/chat/completions"
     }
 }

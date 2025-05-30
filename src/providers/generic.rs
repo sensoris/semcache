@@ -17,11 +17,11 @@ impl Provider for Generic {
         HeaderValue::from_static("api.anthropic.com")
     }
 
-    fn prompt_path(&self) -> &'static str {
-        "$.messages[-1].content"
-    }
-
     fn path(&self) -> &'static str {
         "/semcache/chat/completions"
+    }
+
+    fn prompt_path(&self) -> &'static str {
+        "$.messages[-1].content"
     }
 }

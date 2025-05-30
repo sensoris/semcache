@@ -17,11 +17,11 @@ impl Provider for Anthropic {
         HeaderValue::from_static("api.anthropic.com")
     }
 
-    fn prompt_path(&self) -> &'static str {
-        "$.messages[-1].content"
-    }
-
     fn path(&self) -> &'static str {
         "/v1/messages"
+    }
+
+    fn prompt_path(&self) -> &'static str {
+        "$.messages[-1].content"
     }
 }
