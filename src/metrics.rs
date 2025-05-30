@@ -21,7 +21,7 @@ pub static CHAT_COMPLETIONS: LazyLock<IntCounter> = LazyLock::new(|| {
 });
 
 pub static MEM_USAGE_KB: LazyLock<IntGauge> = LazyLock::new(|| {
-    register_int_gauge!("memory_usage", "Application memory usage in kilobytes").unwrap_or_else(
+    register_int_gauge!("memory_usage", "Application memory usage in kilobytes (only available in Linux systems)").unwrap_or_else(
         |err| {
             error!(error = ?err);
             panic!("Issue creating memory usage metric")
@@ -58,7 +58,7 @@ pub fn metrics() -> MetricsResponse {
             chart_type: ChartType::Line,
         },
         Metrics {
-            name: "Memory usage (mb)".to_string(),
+            name: "Memory usage (mb) - only available in Linux systems".to_string(),
             value: MEM_USAGE_KB.get() / 1024,
             chart_type: ChartType::Line,
         },
