@@ -7,7 +7,7 @@ use std::path::Path;
 use std::sync::LazyLock;
 use tokio::task;
 use tokio::time::{self, Duration};
-use tracing::{error, warn};
+use tracing::{debug, error};
 
 use crate::utils::cgroup_utils;
 
@@ -107,7 +107,7 @@ fn start_metrics_collection() {
 fn update_mem_usage_metric() {
     match cgroup_utils::read_cgroup_v2_memory_kb() {
         Some(used_memory_kb) => MEM_USAGE_KB.set((used_memory_kb) as i64),
-        None => warn!("could not report current memory usage"),
+        None => debug!("could not report current memory usage"),
     }
 }
 
