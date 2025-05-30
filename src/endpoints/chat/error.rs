@@ -1,4 +1,5 @@
 use axum::response::{IntoResponse, Response};
+use jsonpath_rust::parser::errors::JsonPathError;
 use reqwest::StatusCode;
 
 use thiserror::Error;
@@ -17,6 +18,10 @@ pub enum CompletionError {
 
     #[error("Input validation error: {0}")]
     InvalidRequest(String),
+
+    // todo is there a way to combine this with the above invalidRequest?
+    #[error("Input validation error: {0}")]
+    InvalidJsonPath(#[from] JsonPathError),
 
     #[error("Error in caching layer: {0}")]
     InternalCacheError(#[from] CacheError),
@@ -54,13 +59,17 @@ impl IntoResponse for CompletionError {
                 warn!("Failed to parse input, {}", message);
                 (StatusCode::BAD_REQUEST, message).into_response()
             }
-            Self::InternalCacheError(internal_errror) => {
-                warn!("Internal caching error: {}", internal_errror);
+            Self::InternalCacheError(internal_error) => {
+                warn!("Internal caching error: {}", internal_error);
                 (StatusCode::INTERNAL_SERVER_ERROR, "Something went wrong!").into_response()
             }
             Self::InternalEmbeddingError(internal_error) => {
                 warn!("Internal embedding error: {}", internal_error);
                 (StatusCode::INTERNAL_SERVER_ERROR, "Something went wrong!").into_response()
+            }
+            Self::InvalidJsonPath(message) => {
+                warn!("Failed to parse input, {}", message);
+                (StatusCode::BAD_REQUEST, message.to_string()).into_response()
             }
         }
     }
