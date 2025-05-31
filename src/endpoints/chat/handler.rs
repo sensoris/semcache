@@ -8,10 +8,12 @@ use std::sync::Arc;
 use tracing::info;
 
 use super::error::CompletionError;
-use crate::metrics::CHAT_COMPLETIONS;
+use crate::app_state::AppState;
+use crate::metrics::metrics::{CACHE_HIT, CACHE_MISS};
 use crate::providers::ProviderType;
-use crate::utils::json_extract::extract_prompt_from_path;
-use crate::{app_state::AppState, utils::header_utils::PROXY_PROMPT_LOCATION_HEADER};
+use crate::utils::{
+    header_utils::PROXY_PROMPT_LOCATION_HEADER, json_extract::extract_prompt_from_path,
+};
 
 pub async fn completions(
     State(state): State<Arc<AppState>>,
@@ -19,8 +21,6 @@ pub async fn completions(
     Json(request_body): Json<Value>,
     provider: ProviderType,
 ) -> Result<impl IntoResponse, CompletionError> {
-    CHAT_COMPLETIONS.inc();
-
     let prompt = extract_prompt_from_path(
         &request_body,
         provider.prompt_json_path(headers.get(&PROXY_PROMPT_LOCATION_HEADER))?,
@@ -30,6 +30,7 @@ pub async fn completions(
 
     if let Some(saved_response) = state.cache.get_if_present(&embedding)? {
         info!("CACHE HIT");
+        CACHE_HIT.inc();
         // Return cached response with 200 OK and minimal headers
         let mut response_headers = HeaderMap::new();
         response_headers.insert("X-Cache-Status", "hit".parse().unwrap());
@@ -37,6 +38,7 @@ pub async fn completions(
     };
 
     info!("CACHE_MISS");
+    CACHE_MISS.inc();
 
     // otherwise, send upstream request
     let upstream_response = state

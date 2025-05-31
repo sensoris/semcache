@@ -7,9 +7,12 @@ mod endpoints;
 mod metrics;
 mod providers;
 mod utils;
+
 use crate::endpoints::chat::provider_handlers::{
     anthropic_handler, generic_handler, openai_handler,
 };
+use crate::endpoints::metrics::handler::prometheus_metrics_handler;
+use crate::metrics::metrics::{init_metrics, track_metrics};
 use app_state::AppState;
 use axum::http::StatusCode;
 use axum::{Router, routing::get, routing::post};
@@ -33,23 +36,33 @@ async fn main() {
         ))
         .init();
 
-    metrics::initialize_metrics_collection();
+    // metrics setup
+    init_metrics();
 
     let shared_state = Arc::new(AppState::new(
         get_similarity_threshold(&config).unwrap_or(0.90) as f32,
     ));
 
-    let app = Router::new()
+    let provider_routes = Router::new()
         .route("/", get(|| async { StatusCode::OK }))
         // Provider endpoints
         .route(ProviderType::OpenAI.path(), post(openai_handler))
         .route(ProviderType::Anthropic.path(), post(anthropic_handler))
         .route(ProviderType::Generic.path(), post(generic_handler))
-        // Admin and monitoring
+        .layer(axum::middleware::from_fn(track_metrics)); // Apply middleware only to these routes
+
+    let app = Router::new()
+        .route("/", get(|| async { StatusCode::OK }))
+        // Provider endpoints
+        .merge(provider_routes)
+        // Prometheus metrics
+        .route("/metrics", get(prometheus_metrics_handler))
+        // Admin dashboard
         .route("/admin", get(endpoints::admin::handler::dashboard))
+        // Dashboard metrics
         .route(
-            "/api/metrics",
-            get(endpoints::metrics::handler::get_metrics),
+            "/dashboard-metrics",
+            get(endpoints::metrics::handler::dashboard_metrics_handler),
         )
         .nest_service("/static", ServeDir::new("assets"))
         .with_state(shared_state);
@@ -62,10 +75,8 @@ async fn main() {
             error!(error = ?err);
             panic!("Failed to start listener")
         });
-    info!(
-        "semcache-rs application started successfully on port {}",
-        port
-    );
+
+    info!("Semcache started successfully on port {}", port);
 
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())

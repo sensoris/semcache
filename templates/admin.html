@@ -8,24 +8,35 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <div>
-                <h1 class="dashboard-title">Semcache Dashboard</h1>
-                <p class="greeting">{{ message }}!</p>
-            </div>
-            <div id="last-updated">Last updated: loading...</div>
+<div id="health-indicator" class="health-indicator healthy">
+    <div class="health-dot"></div>
+    <span>SemCache Connected</span>
+</div>
+
+<div class="container">
+    <div class="header">
+        <div>
+            <h1 class="dashboard-title">Semcache Dashboard</h1>
+            <p class="greeting">{{ message }}!</p>
+            <p> For more in depth metrics such as latency, please refer to our <a href="https://docs.semcache.io">advanced metrics guide</a></p>
         </div>
-        
-        <div id="stats-container" class="stats-container">
-            <!-- Stats cards will be dynamically inserted here -->
-        </div>
-        
-        <div id="charts-area">
-            <!-- Charts will be dynamically inserted here -->
-        </div>
+        <div id="last-updated">Last updated: loading...</div>
     </div>
-    
-    <script src="/static/admin.js"></script>
+
+    <div id="stats-container" class="stats-container">
+    </div>
+
+    <div id="charts-area">
+    </div>
+</div>
+
+<footer class="site-footer">
+    <div class="footer-links">
+        <a href="https://www.semcache.io" target="_blank" rel="noopener noreferrer">Semcache</a> |
+        <a href="https://docs.semcache.io" target="_blank" rel="noopener noreferrer">Documentation</a>
+    </div>
+</footer>
+
+<script src="/static/admin.js"></script>
 </body>
 </html>

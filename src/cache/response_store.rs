@@ -1,12 +1,10 @@
+use crate::metrics::metrics::CACHE_SIZE;
 use lru::LruCache;
 use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, Mutex};
 use tracing::error;
 
 struct EntryMetadata {
-    // created_at: u64,
-    // last_accessed_at: u64,
-    // hit_count: u32,
     size_bytes: usize,
 }
 
@@ -55,6 +53,7 @@ impl<T: Clone + 'static> ResponseStore<T> {
         cache.put(id, entry);
         self.total_size_bytes
             .fetch_add(size_bytes, std::sync::atomic::Ordering::Relaxed);
+        CACHE_SIZE.inc()
     }
 
     pub fn pop(&self) -> Option<u64> {
@@ -67,6 +66,7 @@ impl<T: Clone + 'static> ResponseStore<T> {
                 entry.metadata.size_bytes,
                 std::sync::atomic::Ordering::Relaxed,
             );
+            CACHE_SIZE.dec();
             Some(id)
         } else {
             None
