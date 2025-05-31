@@ -13,14 +13,11 @@ use crate::endpoints::chat::provider_handlers::{
 };
 use crate::endpoints::metrics::handler::prometheus_metrics_handler;
 use crate::metrics::metrics::{init_metrics, track_metrics};
-use crate::providers::Provider;
-use crate::providers::anthropic::Anthropic;
-use crate::providers::generic::Generic;
-use crate::providers::openai::OpenAI;
 use app_state::AppState;
 use axum::http::StatusCode;
 use axum::{Router, routing::get, routing::post};
 use config::{get_log_level, get_port, get_similarity_threshold};
+use providers::ProviderType;
 use std::sync::Arc;
 use tokio::signal;
 use tower_http::services::ServeDir;
@@ -47,9 +44,11 @@ async fn main() {
     ));
 
     let provider_routes = Router::new()
-        .route(OpenAI.path(), post(openai_handler))
-        .route(Anthropic.path(), post(anthropic_handler))
-        .route(Generic.path(), post(generic_handler))
+        .route("/", get(|| async { StatusCode::OK }))
+        // Provider endpoints
+        .route(ProviderType::OpenAI.path(), post(openai_handler))
+        .route(ProviderType::Anthropic.path(), post(anthropic_handler))
+        .route(ProviderType::Generic.path(), post(generic_handler))
         .layer(axum::middleware::from_fn(track_metrics)); // Apply middleware only to these routes
 
     let app = Router::new()

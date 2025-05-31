@@ -1,9 +1,8 @@
 use crate::endpoints::chat::error::CompletionError;
-use axum::Json;
 use jsonpath_rust::JsonPath;
 use serde_json::Value;
 
-pub fn extract_prompt_from_path(data: &Json<Value>, path: &str) -> Result<String, CompletionError> {
+pub fn extract_prompt_from_path(data: &Value, path: &str) -> Result<String, CompletionError> {
     let query_results = data.query_with_path(path)?;
 
     query_results

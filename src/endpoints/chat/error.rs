@@ -5,7 +5,7 @@ use reqwest::StatusCode;
 use thiserror::Error;
 use tracing::warn;
 
-use crate::{cache::error::CacheError, embedding::error::EmbeddingError};
+use crate::{cache::error::CacheError, embedding::error::EmbeddingError, providers::ProviderError};
 
 // Error type
 #[derive(Debug, Error)]
@@ -28,6 +28,9 @@ pub enum CompletionError {
 
     #[error("Error generating embedding: {0}")]
     InternalEmbeddingError(#[from] EmbeddingError),
+
+    #[error("Provider error: {0}")]
+    InternalProviderError(#[from] ProviderError),
 }
 
 impl IntoResponse for CompletionError {
@@ -70,6 +73,14 @@ impl IntoResponse for CompletionError {
             Self::InvalidJsonPath(message) => {
                 warn!("Failed to parse input, {}", message);
                 (StatusCode::BAD_REQUEST, message.to_string()).into_response()
+            }
+            Self::InternalProviderError(err) => {
+                warn!("Error in provider: {}", err);
+                (
+                    StatusCode::BAD_REQUEST,
+                    format!("Error handling request: {err}"),
+                )
+                    .into_response()
             }
         }
     }
