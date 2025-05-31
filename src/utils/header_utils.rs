@@ -21,7 +21,7 @@ pub static HOP_HEADERS: LazyLock<[HeaderName; 11]> = LazyLock::new(|| {
         HeaderName::from_static("upgrade"),
         // todo - why do we need to remove this?
         HeaderName::from_static("content-length"),
-        HeaderName::from_static("host")
+        HeaderName::from_static("host"),
     ]
 });
 

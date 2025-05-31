@@ -20,8 +20,9 @@ static OPEN_AI_DEFAULT_HOST: LazyLock<HeaderValue> =
     LazyLock::new(|| HeaderValue::from_static("api.openai.com"));
 
 // REST METHOD PATH
-static ANTHROPIC_REST_PATH: &str = "v1/messages";
-static OPEN_AI_REST_PATH: &str = "v1/chat/completions";
+static ANTHROPIC_REST_PATH: &str = "/v1/messages";
+static OPEN_AI_REST_PATH: &str = "/v1/chat/completions";
+static GENERIC_REST_PATH: &str = "/v1/semcache/";
 
 // JSON PROMPT PATH
 static ANTHROPIC_PROMPT_PATH: &str = "$.messages[-1].content";
@@ -46,9 +47,7 @@ impl ProviderType {
         match self {
             ProviderType::Anthropic => ANTHROPIC_REST_PATH,
             ProviderType::OpenAI => OPEN_AI_REST_PATH,
-            ProviderType::Generic => {
-                unimplemented!("No default path exists for the generic provider")
-            }
+            ProviderType::Generic => GENERIC_REST_PATH,
         }
     }
     pub fn prompt_json_path<'request>(
