@@ -1,7 +1,6 @@
-use crate::app_state::AppState;
 use crate::endpoints::chat::error::CompletionError;
 use crate::endpoints::chat::handler::completions;
-use crate::providers::{anthropic::Anthropic, generic::Generic, openai::OpenAI};
+use crate::{app_state::AppState, providers::ProviderType};
 use axum::{
     Json,
     extract::State,
@@ -16,7 +15,7 @@ pub async fn openai_handler(
     headers: HeaderMap,
     body: Json<Value>,
 ) -> Result<Response, CompletionError> {
-    completions(state, headers, body, OpenAI)
+    completions(state, headers, body, ProviderType::OpenAI)
         .await
         .map(IntoResponse::into_response)
 }
@@ -26,7 +25,7 @@ pub async fn anthropic_handler(
     headers: HeaderMap,
     body: Json<Value>,
 ) -> Result<Response, CompletionError> {
-    completions(state, headers, body, Anthropic)
+    completions(state, headers, body, ProviderType::Anthropic)
         .await
         .map(IntoResponse::into_response)
 }
@@ -36,7 +35,7 @@ pub async fn generic_handler(
     headers: HeaderMap,
     body: Json<Value>,
 ) -> Result<Response, CompletionError> {
-    completions(state, headers, body, Generic)
+    completions(state, headers, body, ProviderType::Generic)
         .await
         .map(IntoResponse::into_response)
 }

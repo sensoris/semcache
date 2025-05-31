@@ -10,14 +10,11 @@ mod utils;
 use crate::endpoints::chat::provider_handlers::{
     anthropic_handler, generic_handler, openai_handler,
 };
-use crate::providers::Provider;
-use crate::providers::anthropic::Anthropic;
-use crate::providers::generic::Generic;
-use crate::providers::openai::OpenAI;
 use app_state::AppState;
 use axum::http::StatusCode;
 use axum::{Router, routing::get, routing::post};
 use config::{get_log_level, get_port, get_similarity_threshold};
+use providers::ProviderType;
 use std::sync::Arc;
 use tokio::signal;
 use tower_http::services::ServeDir;
@@ -45,9 +42,9 @@ async fn main() {
     let app = Router::new()
         .route("/", get(|| async { StatusCode::OK }))
         // Provider endpoints
-        .route(OpenAI.path(), post(openai_handler))
-        .route(Anthropic.path(), post(anthropic_handler))
-        .route(Generic.path(), post(generic_handler))
+        .route(ProviderType::OpenAI.path(), post(openai_handler))
+        .route(ProviderType::Anthropic.path(), post(anthropic_handler))
+        .route(ProviderType::Generic.path(), post(generic_handler))
         // Admin and monitoring
         .route("/admin", get(endpoints::admin::handler::dashboard))
         .route(
