@@ -59,7 +59,9 @@ impl ProviderType {
         match self {
             ProviderType::Anthropic => Ok(ANTHROPIC_PROMPT_PATH),
             ProviderType::OpenAI => Ok(OPEN_AI_PROMPT_PATH),
-            ProviderType::Generic => todo!(),
+            ProviderType::Generic => Err(ProviderError::InvalidGenericProvider(String::from(
+                "Please provide a prompt path when using the generic semcache method",
+            ))),
         }
     }
 
@@ -79,10 +81,10 @@ impl ProviderType {
         else if let Some(proxy_host) = maybe_proxy_host {
             let base_url = Url::parse(proxy_host.to_str()?)?;
             return match self {
-                ProviderType::Anthropic => Ok(base_url.join(ANTHROPIC_PROMPT_PATH)?),
-                ProviderType::OpenAI => Ok(base_url.join(OPEN_AI_PROMPT_PATH)?),
+                ProviderType::Anthropic => Ok(base_url.join(ANTHROPIC_REST_PATH)?),
+                ProviderType::OpenAI => Ok(base_url.join(OPEN_AI_REST_PATH)?),
                 ProviderType::Generic => Err(ProviderError::InvalidGenericProvider(String::from(
-                    "please use the X-LLM_PROXY_UPSREAM header to specify server to forward requests to",
+                    "please use the X-LLM-PROXY-UPSTREAM header to specify server to forward requests to",
                 ))),
             };
         }
@@ -90,7 +92,194 @@ impl ProviderType {
         match self {
             ProviderType::Anthropic => Ok(ANTHROPIC_DEFAULT_URL.clone()),
             ProviderType::OpenAI => Ok(OPEN_AI_DEFAULT_URL.clone()),
-            ProviderType::Generic => unimplemented!(),
+            ProviderType::Generic => Err(ProviderError::InvalidGenericProvider(String::from(
+                "please use the X-LLM-PROXY-UPSTREAM header to specify server to forward requests to",
+            ))),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use axum::http::HeaderValue;
+    use url::Url;
+
+    use crate::providers::{
+        ANTHROPIC_DEFAULT_URL, ANTHROPIC_PROMPT_PATH, OPEN_AI_DEFAULT_URL, OPEN_AI_PROMPT_PATH,
+        ProviderType,
+    };
+
+    #[test]
+    fn prompt_json_path_openai() {
+        // given
+        let provider = ProviderType::OpenAI;
+
+        // when
+        let path = provider.prompt_json_path(None).unwrap();
+
+        // then
+        assert_eq!(path, OPEN_AI_PROMPT_PATH);
+    }
+
+    #[test]
+    fn prompt_json_path_anthropic() {
+        // given
+        let provider = ProviderType::Anthropic;
+
+        // when
+        let path = provider.prompt_json_path(None).unwrap();
+
+        // then
+        assert_eq!(path, ANTHROPIC_PROMPT_PATH);
+    }
+
+    #[test]
+    fn prompt_json_path_generic_and_path_supplied() {
+        // given
+        let provider = ProviderType::Generic;
+
+        // when
+        let header_prompt = HeaderValue::from_static("$.prompt_path");
+        let path = provider.prompt_json_path(Some(&header_prompt)).unwrap();
+
+        // then
+        assert_eq!(path, "$.prompt_path");
+    }
+
+    #[test]
+    fn prompt_json_path_generic_and_no_path_expect_err() {
+        // given
+        let provider = ProviderType::Generic;
+
+        // when
+        let path = provider.prompt_json_path(None);
+
+        // then
+        match path {
+            Ok(_) => panic!("Should given an error"),
+            Err(_) => assert!(true),
+        }
+    }
+
+    #[test]
+    fn url_openai() {
+        // given
+        let provider = ProviderType::OpenAI;
+
+        // when
+        let url = provider.url(None, None).unwrap();
+
+        // then
+        assert_eq!(url, *OPEN_AI_DEFAULT_URL);
+    }
+
+    #[test]
+    fn url_anthropic() {
+        // given
+        let provider = ProviderType::Anthropic;
+
+        // when
+        let url = provider.url(None, None).unwrap();
+
+        // then
+        assert_eq!(url, *ANTHROPIC_DEFAULT_URL);
+    }
+
+    #[test]
+    fn url_openai_when_host_header_provided() {
+        // given
+        let provider = ProviderType::OpenAI;
+
+        // when
+        let url = provider
+            .url(
+                None,
+                Some(&HeaderValue::from_static("https://api.deepseek.com")),
+            )
+            .unwrap();
+
+        // then
+        let expected = Url::parse("https://api.deepseek.com/v1/chat/completions").unwrap();
+        assert_eq!(url, expected);
+    }
+
+    #[test]
+    fn url_openai_when_proxy_upstream_and_host_header_provided() {
+        // given
+        let provider = ProviderType::OpenAI;
+        let proxy_upstream = HeaderValue::from_static("https://clart.com");
+        let proxy_host = HeaderValue::from_static("https://api.deepseek.com");
+
+        // when
+        let url = provider
+            .url(Some(&proxy_upstream), Some(&proxy_host))
+            .unwrap();
+
+        // then
+        let expected = Url::parse("https://clart.com").unwrap();
+        assert_eq!(url, expected);
+    }
+
+    #[test]
+    fn url_generic_when_proxy_upstream_and_host_header_provided() {
+        // given
+        let provider = ProviderType::Generic;
+        let proxy_upstream = HeaderValue::from_static("https://clart.com");
+        let proxy_host = HeaderValue::from_static("https://api.deepseek.com");
+
+        // when
+        let url = provider
+            .url(Some(&proxy_upstream), Some(&proxy_host))
+            .unwrap();
+
+        // then
+        let expected = Url::parse("https://clart.com").unwrap();
+        assert_eq!(url, expected);
+    }
+
+    #[test]
+    fn url_generic_when_proxy_upstream_provided() {
+        // given
+        let provider = ProviderType::Generic;
+        let proxy_upstream = HeaderValue::from_static("https://clart.com");
+
+        // when
+        let url = provider.url(Some(&proxy_upstream), None).unwrap();
+
+        // then
+        let expected = Url::parse("https://clart.com").unwrap();
+        assert_eq!(url, expected);
+    }
+
+    #[test]
+    fn url_generic_when_proxy_host_provided() {
+        // given
+        let provider = ProviderType::Generic;
+        let proxy_host = HeaderValue::from_static("https://api.deepseek.com");
+
+        // when
+        let url = provider.url(None, Some(&proxy_host));
+
+        // then
+        match url {
+            Ok(_) => panic!("Should give an error"),
+            Err(_) => assert!(true),
+        }
+    }
+
+    #[test]
+    fn url_generic_when_no_headers_provided() {
+        // given
+        let provider = ProviderType::Generic;
+
+        // when
+        let url = provider.url(None, None);
+
+        // then
+        match url {
+            Ok(_) => panic!("Should give an error"),
+            Err(_) => assert!(true),
         }
     }
 }
