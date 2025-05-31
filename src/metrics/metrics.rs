@@ -132,8 +132,7 @@ pub(crate) fn initialize_metrics_collection() {
 
             update_mem_usage_metric();
 
-            // todo: should we have a flag around this for disabling history collection?
-            update_dashboard_history();
+            update_dashboard_history().await;
         }
     });
 }

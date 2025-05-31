@@ -1,7 +1,6 @@
 use crate::metrics::metrics::{CACHE_HIT, CACHE_MISS, CACHE_SIZE, MEM_USAGE_KB};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::fs;
 
 const METRICS_HISTORY_PATH: &str = "assets/metrics_history.json";
 const MAX_LENGTH: usize = 50;
@@ -63,24 +62,26 @@ pub fn dashboard_metrics() -> DashboardMetricsResponse {
     }
 }
 
-pub fn update_dashboard_history() {
-    fs::write(METRICS_HISTORY_PATH, "[]").expect("Failed to create metrics history file");
+pub async fn update_dashboard_history() {
+    tokio::fs::write(METRICS_HISTORY_PATH, "[]")
+        .await
+        .expect("Failed to create metrics history file");
 
     let current_metrics = dashboard_metrics();
-    let mut history = dashboard_metrics_history();
-
+    let mut history = dashboard_metrics_history().await;
     history.push(current_metrics);
     history = limit_history_length(history);
 
     // Write updated history back to the file
     if let Ok(json_string) = serde_json::to_string_pretty(&history) {
-        let _ = fs::write(METRICS_HISTORY_PATH, json_string);
+        let _ = tokio::fs::write(METRICS_HISTORY_PATH, json_string).await;
     }
 }
 
-fn dashboard_metrics_history() -> Vec<DashboardMetricsResponse> {
-    let history_content =
-        fs::read_to_string(METRICS_HISTORY_PATH).unwrap_or_else(|_| "[]".to_string());
+async fn dashboard_metrics_history() -> Vec<DashboardMetricsResponse> {
+    let history_content = tokio::fs::read_to_string(METRICS_HISTORY_PATH)
+        .await
+        .unwrap_or_else(|_| "[]".to_string());
 
     let history: Vec<DashboardMetricsResponse> =
         serde_json::from_str(&history_content).unwrap_or_else(|_| Vec::new());
