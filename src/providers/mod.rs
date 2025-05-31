@@ -1,6 +1,8 @@
 use std::sync::LazyLock;
 
 use axum::http::HeaderValue;
+use reqwest::header::ToStrError;
+use thiserror::Error;
 use url::Url;
 
 // DEFAULTS
@@ -25,6 +27,12 @@ static OPEN_AI_REST_PATH: &str = "v1/chat/completions";
 static ANTHROPIC_PROMPT_PATH: &str = "$.messages[-1].content";
 static OPEN_AI_PROMPT_PATH: &str = "$.messages[-1].content";
 
+#[derive(Error, Debug)]
+pub enum ProviderError {
+    #[error("Failed to extract header value: {0}")]
+    HeaderParsingError(#[from] ToStrError),
+}
+
 pub enum ProviderType {
     Anthropic,
     OpenAI,
@@ -34,33 +42,42 @@ pub enum ProviderType {
 impl ProviderType {
     pub fn path(&self) -> &'static str {
         match self {
-            ProviderType::Anthropic { .. } => ANTHROPIC_REST_PATH,
-            ProviderType::OpenAI { .. } => OPEN_AI_REST_PATH,
+            ProviderType::Anthropic => ANTHROPIC_REST_PATH,
+            ProviderType::OpenAI => OPEN_AI_REST_PATH,
             ProviderType::Generic => {
                 unimplemented!("No default path exists for the generic provider")
             }
         }
     }
-    pub fn prompt_json_path(&self) -> &'static str {
+    pub fn prompt_json_path<'request>(
+        &self,
+        maybe_prompt_location_header: Option<&'request HeaderValue>,
+    ) -> Result<&'request str, ProviderError> {
+        // if the prompt json path is set in the request, use this
+        if let Some(prompt_location_header) = maybe_prompt_location_header {
+            return Ok(prompt_location_header.to_str()?);
+        };
+
+        // if no json path is set, fall back to defaults per provider
         match self {
-            ProviderType::Anthropic { .. } => ANTHROPIC_PROMPT_PATH,
-            ProviderType::OpenAI { .. } => OPEN_AI_PROMPT_PATH,
+            ProviderType::Anthropic => Ok(ANTHROPIC_PROMPT_PATH),
+            ProviderType::OpenAI => Ok(OPEN_AI_PROMPT_PATH),
             ProviderType::Generic => todo!(),
         }
     }
 
     pub fn host_header(&self) -> &'static HeaderValue {
         match self {
-            ProviderType::Anthropic { .. } => &ANTHROPIC_DEFAULT_HOST,
-            ProviderType::OpenAI { .. } => &OPEN_AI_DEFAULT_HOST,
+            ProviderType::Anthropic => &ANTHROPIC_DEFAULT_HOST,
+            ProviderType::OpenAI => &OPEN_AI_DEFAULT_HOST,
             ProviderType::Generic => unimplemented!(),
         }
     }
 
     pub fn url(&self) -> &'static Url {
         match self {
-            ProviderType::Anthropic { .. } => &ANTHROPIC_DEFAULT_URL,
-            ProviderType::OpenAI { .. } => &OPEN_AI_DEFAULT_URL,
+            ProviderType::Anthropic => &ANTHROPIC_DEFAULT_URL,
+            ProviderType::OpenAI => &OPEN_AI_DEFAULT_URL,
             ProviderType::Generic => unimplemented!(),
         }
     }

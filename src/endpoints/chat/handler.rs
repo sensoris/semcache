@@ -8,10 +8,10 @@ use std::sync::Arc;
 use tracing::info;
 
 use super::error::CompletionError;
-use crate::app_state::AppState;
 use crate::metrics::CHAT_COMPLETIONS;
 use crate::providers::ProviderType;
 use crate::utils::json_extract::extract_prompt_from_path;
+use crate::{app_state::AppState, utils::header_utils::PROXY_PROMPT_LOCATION_HEADER};
 
 pub async fn completions(
     State(state): State<Arc<AppState>>,
@@ -21,7 +21,10 @@ pub async fn completions(
 ) -> Result<impl IntoResponse, CompletionError> {
     CHAT_COMPLETIONS.inc();
 
-    let prompt = extract_prompt_from_path(&request_body, provider.prompt_json_path())?;
+    let prompt = extract_prompt_from_path(
+        &request_body,
+        provider.prompt_json_path(headers.get(&PROXY_PROMPT_LOCATION_HEADER))?,
+    )?;
     info!("prompt: {prompt}");
     let embedding = state.embedding_service.embed(&prompt)?;
 
@@ -36,7 +39,6 @@ pub async fn completions(
     info!("CACHE_MISS");
 
     // otherwise, send upstream request
-
     let upstream_response = state
         .http_client
         .post_http_request(headers, provider, request_body)
