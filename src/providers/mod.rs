@@ -16,7 +16,7 @@ static OPEN_AI_DEFAULT_URL: LazyLock<Url> =
 // REST METHOD PATH
 static ANTHROPIC_REST_PATH: &str = "/v1/messages";
 static OPEN_AI_REST_PATH: &str = "/v1/chat/completions";
-static GENERIC_REST_PATH: &str = "/v1/semcache/";
+static GENERIC_REST_PATH: &str = "/semcache//v1/chat";
 
 // JSON PROMPT PATH
 static ANTHROPIC_PROMPT_PATH: &str = "$.messages[-1].content";
