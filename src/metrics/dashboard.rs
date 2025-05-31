@@ -1,8 +1,7 @@
-use crate::metrics::metrics::MEM_USAGE_KB;
+use crate::metrics::metrics::{CACHE_HIT, CACHE_MISS, CACHE_SIZE, MEM_USAGE_KB};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::Path;
 
 const METRICS_HISTORY_PATH: &str = "assets/metrics_history.json";
 const MAX_LENGTH: usize = 50;
@@ -13,6 +12,7 @@ pub enum ChartType {
     Bar,
     Line,
     Doughnut,
+    StatCard,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -31,9 +31,23 @@ pub struct DashboardMetricsResponse {
 pub fn dashboard_metrics() -> DashboardMetricsResponse {
     let metrics = vec![
         DashboardMetrics {
-            name: "Chat completion requests".to_string(),
-            // todo implement with real metrics
-            value: 1,
+            name: "Num entries in the cache".to_string(),
+            value: CACHE_SIZE.get(),
+            chart_type: ChartType::StatCard,
+        },
+        DashboardMetrics {
+            name: "Total chat completion requests".to_string(),
+            value: (CACHE_HIT.get() + CACHE_MISS.get()) as i64,
+            chart_type: ChartType::StatCard,
+        },
+        DashboardMetrics {
+            name: "Cache hits".to_string(),
+            value: CACHE_HIT.get() as i64,
+            chart_type: ChartType::Line,
+        },
+        DashboardMetrics {
+            name: "Cache miss".to_string(),
+            value: CACHE_MISS.get() as i64,
             chart_type: ChartType::Line,
         },
         DashboardMetrics {
@@ -50,9 +64,7 @@ pub fn dashboard_metrics() -> DashboardMetricsResponse {
 }
 
 pub fn update_dashboard_history() {
-    if !Path::new(METRICS_HISTORY_PATH).exists() {
-        fs::write(METRICS_HISTORY_PATH, "[]").expect("Failed to create metrics history file");
-    }
+    fs::write(METRICS_HISTORY_PATH, "[]").expect("Failed to create metrics history file");
 
     let current_metrics = dashboard_metrics();
     let mut history = dashboard_metrics_history();

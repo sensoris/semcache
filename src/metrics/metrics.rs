@@ -4,7 +4,10 @@ use axum::extract::{MatchedPath, Request};
 use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::IntoResponse;
-use prometheus::{HistogramVec, IntGauge, register_histogram_vec, register_int_gauge};
+use prometheus::{
+    HistogramVec, IntCounter, IntGauge, register_histogram_vec, register_int_counter,
+    register_int_gauge,
+};
 use std::sync::LazyLock;
 use std::time::Instant;
 use tokio::task;
@@ -47,6 +50,31 @@ pub static MEM_USAGE_KB: LazyLock<IntGauge> = LazyLock::new(|| {
     .unwrap_or_else(|err| {
         error!(error = ?err);
         panic!("Issue creating memory usage metric")
+    })
+});
+
+pub static CACHE_HIT: LazyLock<IntCounter> = LazyLock::new(|| {
+    register_int_counter!(metric_name!("cache_hit"), "Cache hit").unwrap_or_else(|err| {
+        error!(error = ?err);
+        panic!("Issue creating cache hit metric")
+    })
+});
+
+pub static CACHE_MISS: LazyLock<IntCounter> = LazyLock::new(|| {
+    register_int_counter!(metric_name!("cache_miss"), "Cache miss").unwrap_or_else(|err| {
+        error!(error = ?err);
+        panic!("Issue creating cache miss metric")
+    })
+});
+
+pub static CACHE_SIZE: LazyLock<IntGauge> = LazyLock::new(|| {
+    register_int_gauge!(
+        metric_name!("cache_size"),
+        "The number of entries in the cache"
+    )
+    .unwrap_or_else(|err| {
+        error!(error = ?err);
+        panic!("Issue creating cache size metric")
     })
 });
 

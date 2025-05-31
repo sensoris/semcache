@@ -4,7 +4,7 @@ use axum::response::{Html, IntoResponse, Response};
 
 pub async fn dashboard() -> impl IntoResponse {
     let template = AdminTemplate {
-        message: String::from("Welcome to your dashboard"),
+        message: String::from("Welcome to your semantic caching dashboard"),
     };
     HtmlTemplate(template)
 }

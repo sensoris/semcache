@@ -103,3 +103,90 @@ canvas {
     width: 100% !important;
     height: 300px !important;
 }
+
+.health-indicator {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 8px 16px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.health-indicator.healthy {
+    background-color: #e6f4ea;
+    color: #1e7e34;
+}
+
+.health-indicator.unhealthy {
+    background-color: #fbe9e7;
+    color: #d32f2f;
+}
+
+.health-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    transition: background-color 0.3s ease;
+}
+
+.health-indicator.healthy .health-dot {
+    background-color: #1e7e34;
+}
+
+.health-indicator.unhealthy .health-dot {
+    background-color: #d32f2f;
+}
+
+.site-footer {
+    background-color: var(--card-bg);
+    color: var(--secondary);
+    text-align: center;
+    padding: 25px 20px;
+    margin-top: 50px;
+    border-top: 1px solid var(--border);
+    font-size: 0.9em;
+    line-height: 1.5;
+}
+
+.site-footer p {
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
+
+.site-footer .footer-links {
+    margin-bottom: 10px;
+}
+
+.site-footer .footer-links a {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 500;
+    margin: 0 10px;
+    transition: color 0.2s ease-in-out, text-decoration 0.2s ease-in-out;
+}
+
+.site-footer .footer-links a:hover,
+.site-footer .footer-links a:focus {
+    color: #3a58d6;
+    text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+    .site-footer {
+        padding: 20px 15px;
+        margin-top: 30px;
+    }
+
+    .site-footer .footer-links a {
+        margin: 0 5px;
+        display: inline-block;
+        margin-bottom: 5px;
+    }
+}

@@ -252,14 +252,27 @@ function refreshUI() {
     document.getElementById('last-updated').textContent =
         `Last updated: ${formatDateTime(metricsData.timestamp)}`;
 
-    // Update each metric
     metricsData.metrics.forEach(metric => {
-        createOrUpdateStatCard(metric);
-        createOrUpdateChart(metric);
+        console.log(metric.chart_type)
+        if (metric.chart_type === 'statcard') {
+            createOrUpdateStatCard(metric);
+        } else {
+            createOrUpdateChart(metric);
+        }
     });
 }
 
-// Function to fetch metrics data
+function updateHealthStatus(healthy) {
+    const healthIndicator = document.getElementById('health-indicator');
+    if (healthIndicator) {
+        healthIndicator.className = `health-indicator ${healthy ? 'healthy' : 'unhealthy'}`;
+        healthIndicator.innerHTML = `
+            <div class="health-dot"></div>
+            <span>${healthy ? 'SemCache Connected' : 'SemCache Disconnected'}</span>
+        `;
+    }
+}
+
 async function fetchMetrics() {
     try {
         const response = await fetch('/dashboard-metrics');
@@ -268,9 +281,11 @@ async function fetchMetrics() {
         }
 
         metricsData = await response.json();
+        updateHealthStatus(true);
         refreshUI();
     } catch (error) {
         console.error('Error fetching metrics:', error);
+        updateHealthStatus(false);
     }
 }
 

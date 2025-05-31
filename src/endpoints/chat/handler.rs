@@ -10,6 +10,7 @@ use tracing::{debug, info};
 
 use super::error::CompletionError;
 use crate::app_state::AppState;
+use crate::metrics::metrics::{CACHE_HIT, CACHE_MISS};
 use crate::providers::Provider;
 use crate::utils::json_extract::extract_prompt_from_path;
 
@@ -44,6 +45,7 @@ pub async fn completions<P: Provider>(
 
     if let Some(saved_response) = state.cache.get_if_present(&embedding)? {
         info!("CACHE HIT");
+        CACHE_HIT.inc();
         // Return cached response with 200 OK and minimal headers
         let mut response_headers = HeaderMap::new();
         response_headers.insert("X-Cache-Status", "hit".parse().unwrap());
@@ -51,6 +53,7 @@ pub async fn completions<P: Provider>(
     };
 
     info!("CACHE_MISS");
+    CACHE_MISS.inc();
 
     // otherwise, send upstream request
     let upstream_url = provider.upstream_url();
