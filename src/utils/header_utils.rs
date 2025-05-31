@@ -8,7 +8,7 @@ use url::Url;
 pub static PROXY_UPSTREAM_HOST_HEADER: HeaderName = HeaderName::from_static("x-llm-proxy-host");
 pub static PROXY_UPSTREAM_HEADER: HeaderName = HeaderName::from_static("x-llm-proxy-upstream");
 pub static PROXY_PROMPT_LOCATION_HEADER: HeaderName = HeaderName::from_static("x-llm-prompt");
-pub static HOP_HEADERS: LazyLock<[HeaderName; 10]> = LazyLock::new(|| {
+pub static HOP_HEADERS: LazyLock<[HeaderName; 11]> = LazyLock::new(|| {
     [
         HeaderName::from_static("connection"),
         HeaderName::from_static("te"),
@@ -21,6 +21,7 @@ pub static HOP_HEADERS: LazyLock<[HeaderName; 10]> = LazyLock::new(|| {
         HeaderName::from_static("upgrade"),
         // todo - why do we need to remove this?
         HeaderName::from_static("content-length"),
+        HeaderName::from_static("host")
     ]
 });
 
@@ -41,21 +42,5 @@ pub fn prepare_upstream_headers(headers: HeaderMap, url: &Url) -> HeaderMap {
     upstream_headers.remove(&PROXY_UPSTREAM_HEADER);
     upstream_headers.remove(&PROXY_PROMPT_LOCATION_HEADER);
 
-    // add host for request to be accepted
-    get_host_header(headers.get(&PROXY_UPSTREAM_HOST_HEADER), url.clone())
-        .map(|host_val| upstream_headers.insert("host", host_val));
     upstream_headers
-}
-
-fn get_host_header(maybe_proxy_host_header: Option<&HeaderValue>, url: Url) -> Option<HeaderValue> {
-    // if user has specified alternative host header in request, use this
-    if let Some(proxy_host_header) = maybe_proxy_host_header {
-        return Some(proxy_host_header.clone());
-    }
-    // else compute host from url
-    else {
-        return url
-            .host_str()
-            .and_then(|host| HeaderValue::from_str(host).ok());
-    }
 }
