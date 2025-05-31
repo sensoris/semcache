@@ -10,7 +10,6 @@ use tracing::{debug, info};
 
 use super::error::CompletionError;
 use crate::app_state::AppState;
-use crate::metrics::CHAT_COMPLETIONS;
 use crate::providers::Provider;
 use crate::utils::json_extract::extract_prompt_from_path;
 
@@ -39,8 +38,6 @@ pub async fn completions<P: Provider>(
     request_body: Json<Value>,
     provider: P,
 ) -> Result<impl IntoResponse, CompletionError> {
-    CHAT_COMPLETIONS.inc();
-
     let prompt = extract_prompt_from_path(&request_body, provider.prompt_path())?;
     info!("prompt: {prompt}");
     let embedding = state.embedding_service.embed(&prompt)?;

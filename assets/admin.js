@@ -262,7 +262,7 @@ function refreshUI() {
 // Function to fetch metrics data
 async function fetchMetrics() {
     try {
-        const response = await fetch('/api/metrics');
+        const response = await fetch('/dashboard-metrics');
         if (!response.ok) {
             throw new Error('Network response was not ok');
         }
