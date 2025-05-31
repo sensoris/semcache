@@ -68,21 +68,6 @@ impl ProviderType {
         }
     }
 
-    pub fn host_header<'request>(
-        &self,
-        maybe_proxy_host_header: Option<&'request HeaderValue>,
-    ) -> &'request HeaderValue {
-        // if user has specified alternative host header in request, use this
-        if let Some(proxy_host_header) = maybe_proxy_host_header {
-            return proxy_host_header;
-        }
-        match self {
-            ProviderType::Anthropic => &ANTHROPIC_DEFAULT_HOST,
-            ProviderType::OpenAI => &OPEN_AI_DEFAULT_HOST,
-            ProviderType::Generic => unimplemented!(),
-        }
-    }
-
     pub fn url(&self, maybe_upstream_url: Option<&HeaderValue>) -> Result<Url, ProviderError> {
         // if the upstream url is set in the request, use this
         if let Some(upstream_url) = maybe_upstream_url {

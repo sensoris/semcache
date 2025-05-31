@@ -24,7 +24,7 @@ impl Client for HttpClient {
         request_body: Value,
     ) -> Result<UpstreamResponse, CompletionError> {
         let upstream_url = provider.url(headers.get(&PROXY_UPSTREAM_HEADER))?;
-        let upstream_headers = prepare_upstream_headers(headers, provider);
+        let upstream_headers = prepare_upstream_headers(headers, &upstream_url);
         let reqwest_response = self
             .reqwest_client
             .post(upstream_url)

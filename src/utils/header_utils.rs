@@ -1,9 +1,8 @@
 use std::sync::LazyLock;
 
-use axum::http::{HeaderMap, HeaderName};
+use axum::http::{HeaderMap, HeaderName, HeaderValue};
 use tracing::debug;
-
-use crate::providers::ProviderType;
+use url::Url;
 
 // HEADERS
 pub static PROXY_UPSTREAM_HOST_HEADER: HeaderName = HeaderName::from_static("x-llm-proxy-host");
@@ -33,7 +32,7 @@ pub fn remove_hop_headers(headers: &mut HeaderMap) {
     }
 }
 
-pub fn prepare_upstream_headers(headers: HeaderMap, provider: ProviderType) -> HeaderMap {
+pub fn prepare_upstream_headers(headers: HeaderMap, url: &Url) -> HeaderMap {
     let mut upstream_headers = headers.clone();
 
     remove_hop_headers(&mut upstream_headers);
@@ -43,11 +42,20 @@ pub fn prepare_upstream_headers(headers: HeaderMap, provider: ProviderType) -> H
     upstream_headers.remove(&PROXY_PROMPT_LOCATION_HEADER);
 
     // add host for request to be accepted
-    upstream_headers.insert(
-        "host",
-        provider
-            .host_header(headers.get(&PROXY_UPSTREAM_HOST_HEADER))
-            .clone(),
-    );
+    get_host_header(headers.get(&PROXY_UPSTREAM_HOST_HEADER), url.clone())
+        .map(|host_val| upstream_headers.insert("host", host_val));
     upstream_headers
+}
+
+fn get_host_header(maybe_proxy_host_header: Option<&HeaderValue>, url: Url) -> Option<HeaderValue> {
+    // if user has specified alternative host header in request, use this
+    if let Some(proxy_host_header) = maybe_proxy_host_header {
+        return Some(proxy_host_header.clone());
+    }
+    // else compute host from url
+    else {
+        return url
+            .host_str()
+            .and_then(|host| HeaderValue::from_str(host).ok());
+    }
 }
