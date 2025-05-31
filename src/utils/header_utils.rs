@@ -6,6 +6,7 @@ use tracing::debug;
 use crate::providers::ProviderType;
 
 // HEADERS
+pub static PROXY_UPSTREAM_HOST_HEADER: HeaderName = HeaderName::from_static("x-llm-proxy-host");
 pub static PROXY_UPSTREAM_HEADER: HeaderName = HeaderName::from_static("x-llm-proxy-upstream");
 pub static PROXY_PROMPT_LOCATION_HEADER: HeaderName = HeaderName::from_static("x-llm-prompt");
 pub static HOP_HEADERS: LazyLock<[HeaderName; 10]> = LazyLock::new(|| {
@@ -42,6 +43,11 @@ pub fn prepare_upstream_headers(headers: HeaderMap, provider: ProviderType) -> H
     upstream_headers.remove(&PROXY_PROMPT_LOCATION_HEADER);
 
     // add host for request to be accepted
-    upstream_headers.insert("host", provider.host_header().clone());
+    upstream_headers.insert(
+        "host",
+        provider
+            .host_header(headers.get(&PROXY_UPSTREAM_HOST_HEADER))
+            .clone(),
+    );
     upstream_headers
 }

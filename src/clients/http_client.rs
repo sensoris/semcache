@@ -4,8 +4,9 @@ use reqwest::{Error, Response};
 use serde_json::Value;
 
 use crate::{
+    endpoints::chat::error::CompletionError,
     providers::ProviderType,
-    utils::header_utils::{prepare_upstream_headers, remove_hop_headers},
+    utils::header_utils::{PROXY_UPSTREAM_HEADER, prepare_upstream_headers, remove_hop_headers},
 };
 
 use super::client::{Client, UpstreamResponse};
@@ -21,13 +22,12 @@ impl Client for HttpClient {
         headers: HeaderMap,
         provider: ProviderType,
         request_body: Value,
-    ) -> Result<UpstreamResponse, reqwest::Error> {
-        // TODO (V0): look at proxy LLM upstream first
-        let upstream_url = provider.url();
+    ) -> Result<UpstreamResponse, CompletionError> {
+        let upstream_url = provider.url(headers.get(&PROXY_UPSTREAM_HEADER))?;
         let upstream_headers = prepare_upstream_headers(headers, provider);
         let reqwest_response = self
             .reqwest_client
-            .post(upstream_url.clone())
+            .post(upstream_url)
             .headers(upstream_headers)
             .json(&request_body)
             .send()

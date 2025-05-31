@@ -28,6 +28,7 @@ pub enum CompletionError {
 
     #[error("Error generating embedding: {0}")]
     InternalEmbeddingError(#[from] EmbeddingError),
+
     #[error("Provider error: {0}")]
     InternalProviderError(#[from] ProviderError),
 }
@@ -75,13 +76,11 @@ impl IntoResponse for CompletionError {
             }
             Self::InternalProviderError(err) => {
                 warn!("Error in provider: {}", err);
-                match err {
-                    ProviderError::HeaderParsingError(to_str_error) => (
-                        StatusCode::BAD_REQUEST,
-                        format!("Error parsing headers: {to_str_error}"),
-                    )
-                        .into_response(),
-                }
+                (
+                    StatusCode::BAD_REQUEST,
+                    format!("Error handling request: {err}"),
+                )
+                    .into_response()
             }
         }
     }

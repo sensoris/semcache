@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 use axum::http::HeaderValue;
 use reqwest::header::ToStrError;
 use thiserror::Error;
-use url::Url;
+use url::{ParseError, Url};
 
 // DEFAULTS
 
@@ -29,8 +29,10 @@ static OPEN_AI_PROMPT_PATH: &str = "$.messages[-1].content";
 
 #[derive(Error, Debug)]
 pub enum ProviderError {
-    #[error("Failed to extract header value: {0}")]
-    HeaderParsingError(#[from] ToStrError),
+    #[error("{0}")]
+    StringParsingHeaderError(#[from] ToStrError),
+    #[error("{0}")]
+    UrlParsingHeaderError(#[from] ParseError),
 }
 
 pub enum ProviderType {
@@ -66,7 +68,14 @@ impl ProviderType {
         }
     }
 
-    pub fn host_header(&self) -> &'static HeaderValue {
+    pub fn host_header<'request>(
+        &self,
+        maybe_proxy_host_header: Option<&'request HeaderValue>,
+    ) -> &'request HeaderValue {
+        // if user has specified alternative host header in request, use this
+        if let Some(proxy_host_header) = maybe_proxy_host_header {
+            return proxy_host_header;
+        }
         match self {
             ProviderType::Anthropic => &ANTHROPIC_DEFAULT_HOST,
             ProviderType::OpenAI => &OPEN_AI_DEFAULT_HOST,
@@ -74,10 +83,16 @@ impl ProviderType {
         }
     }
 
-    pub fn url(&self) -> &'static Url {
+    pub fn url(&self, maybe_upstream_url: Option<&HeaderValue>) -> Result<Url, ProviderError> {
+        // if the upstream url is set in the request, use this
+        if let Some(upstream_url) = maybe_upstream_url {
+            let url_str = upstream_url.to_str()?;
+            let parsed_url = Url::parse(url_str)?;
+            return Ok(parsed_url);
+        };
         match self {
-            ProviderType::Anthropic => &ANTHROPIC_DEFAULT_URL,
-            ProviderType::OpenAI => &OPEN_AI_DEFAULT_URL,
+            ProviderType::Anthropic => Ok(ANTHROPIC_DEFAULT_URL.clone()),
+            ProviderType::OpenAI => Ok(OPEN_AI_DEFAULT_URL.clone()),
             ProviderType::Generic => unimplemented!(),
         }
     }

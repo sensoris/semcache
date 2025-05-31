@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use axum::http::HeaderMap;
 use serde_json::Value;
 
-use crate::providers::ProviderType;
+use crate::{endpoints::chat::error::CompletionError, providers::ProviderType};
 
 //TODO (V0): use the test config attribute for automocks to avoid generating mock impls for non test code
 #[cfg_attr(test, mockall::automock)]
@@ -13,7 +13,7 @@ pub trait Client: Send + Sync {
         header_map: HeaderMap,
         provider: ProviderType,
         request_body: Value,
-    ) -> Result<UpstreamResponse, reqwest::Error>;
+    ) -> Result<UpstreamResponse, CompletionError>;
 }
 
 pub struct UpstreamResponse {
