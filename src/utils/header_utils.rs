@@ -1,8 +1,7 @@
 use std::sync::LazyLock;
 
-use axum::http::{HeaderMap, HeaderName, HeaderValue};
+use axum::http::{HeaderMap, HeaderName};
 use tracing::debug;
-use url::Url;
 
 // HEADERS
 pub static PROXY_UPSTREAM_HOST_HEADER: HeaderName = HeaderName::from_static("x-llm-proxy-host");
@@ -33,7 +32,7 @@ pub fn remove_hop_headers(headers: &mut HeaderMap) {
     }
 }
 
-pub fn prepare_upstream_headers(headers: HeaderMap, url: &Url) -> HeaderMap {
+pub fn prepare_upstream_headers(headers: HeaderMap) -> HeaderMap {
     let mut upstream_headers = headers.clone();
 
     remove_hop_headers(&mut upstream_headers);

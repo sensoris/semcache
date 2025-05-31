@@ -6,7 +6,10 @@ use serde_json::Value;
 use crate::{
     endpoints::chat::error::CompletionError,
     providers::ProviderType,
-    utils::header_utils::{PROXY_UPSTREAM_HEADER, prepare_upstream_headers, remove_hop_headers},
+    utils::header_utils::{
+        PROXY_UPSTREAM_HEADER, PROXY_UPSTREAM_HOST_HEADER, prepare_upstream_headers,
+        remove_hop_headers,
+    },
 };
 
 use super::client::{Client, UpstreamResponse};
@@ -23,8 +26,11 @@ impl Client for HttpClient {
         provider: ProviderType,
         request_body: Value,
     ) -> Result<UpstreamResponse, CompletionError> {
-        let upstream_url = provider.url(headers.get(&PROXY_UPSTREAM_HEADER))?;
-        let upstream_headers = prepare_upstream_headers(headers, &upstream_url);
+        let upstream_url = provider.url(
+            headers.get(&PROXY_UPSTREAM_HEADER),
+            headers.get(&PROXY_UPSTREAM_HOST_HEADER),
+        )?;
+        let upstream_headers = prepare_upstream_headers(headers);
         let reqwest_response = self
             .reqwest_client
             .post(upstream_url)

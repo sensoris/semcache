@@ -13,12 +13,6 @@ static ANTHROPIC_DEFAULT_URL: LazyLock<Url> =
 static OPEN_AI_DEFAULT_URL: LazyLock<Url> =
     LazyLock::new(|| Url::parse("https://api.openai.com/v1/chat/completions").unwrap());
 
-// HOST
-static ANTHROPIC_DEFAULT_HOST: LazyLock<HeaderValue> =
-    LazyLock::new(|| HeaderValue::from_static("api.anthropic.com"));
-static OPEN_AI_DEFAULT_HOST: LazyLock<HeaderValue> =
-    LazyLock::new(|| HeaderValue::from_static("api.openai.com"));
-
 // REST METHOD PATH
 static ANTHROPIC_REST_PATH: &str = "/v1/messages";
 static OPEN_AI_REST_PATH: &str = "/v1/chat/completions";
@@ -34,6 +28,8 @@ pub enum ProviderError {
     StringParsingHeaderError(#[from] ToStrError),
     #[error("{0}")]
     UrlParsingHeaderError(#[from] ParseError),
+    #[error("Invalid generic provider: {0}")]
+    InvalidGenericProvider(String),
 }
 
 pub enum ProviderType {
@@ -67,13 +63,30 @@ impl ProviderType {
         }
     }
 
-    pub fn url(&self, maybe_upstream_url: Option<&HeaderValue>) -> Result<Url, ProviderError> {
+    pub fn url(
+        &self,
+        maybe_upstream_url: Option<&HeaderValue>,
+        maybe_proxy_host: Option<&HeaderValue>,
+    ) -> Result<Url, ProviderError> {
         // if the upstream url is set in the request, use this
         if let Some(upstream_url) = maybe_upstream_url {
             let url_str = upstream_url.to_str()?;
             let parsed_url = Url::parse(url_str)?;
             return Ok(parsed_url);
-        };
+        }
+        // else if you want to override the host but use e.g. OpenAI format
+        // this will allow you to call semcache/v1/chat/completions but set X-PROXY-HOST to e.g. "https://api.deepseek.com"
+        else if let Some(proxy_host) = maybe_proxy_host {
+            let base_url = Url::parse(proxy_host.to_str()?)?;
+            return match self {
+                ProviderType::Anthropic => Ok(base_url.join(ANTHROPIC_PROMPT_PATH)?),
+                ProviderType::OpenAI => Ok(base_url.join(OPEN_AI_PROMPT_PATH)?),
+                ProviderType::Generic => Err(ProviderError::InvalidGenericProvider(String::from(
+                    "please use the X-LLM_PROXY_UPSREAM header to specify server to forward requests to",
+                ))),
+            };
+        }
+        // else go with default for path provided
         match self {
             ProviderType::Anthropic => Ok(ANTHROPIC_DEFAULT_URL.clone()),
             ProviderType::OpenAI => Ok(OPEN_AI_DEFAULT_URL.clone()),
