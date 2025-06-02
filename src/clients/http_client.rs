@@ -58,12 +58,11 @@ impl UpstreamResponse {
         remove_hop_headers(&mut response_headers);
 
         let body_bytes = response.bytes().await?;
-        let response_string = String::from_utf8_lossy(&body_bytes).to_string();
 
         Ok(Self {
             status_code: status,
             header_map: response_headers,
-            response_body: response_string,
+            response_body: body_bytes.to_vec(),
         })
     }
 }

@@ -20,5 +20,5 @@ pub trait Client: Send + Sync {
 pub struct UpstreamResponse {
     pub status_code: StatusCode,
     pub header_map: HeaderMap,
-    pub response_body: String,
+    pub response_body: Vec<u8>,
 }

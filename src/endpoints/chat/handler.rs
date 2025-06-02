@@ -34,6 +34,7 @@ pub async fn completions(
         // Return cached response with 200 OK and minimal headers
         let mut response_headers = HeaderMap::new();
         response_headers.insert("X-Cache-Status", "hit".parse().unwrap());
+        response_headers.insert("content-type", "application/json".parse().unwrap());
         return Ok((StatusCode::OK, response_headers, saved_response));
     };
 
@@ -89,7 +90,7 @@ mod tests {
             .returning(move |_| Ok(embedding.clone()));
 
         // set up cache mock
-        let mut mock_cache = MockCache::new();
+        let mut mock_cache: MockCache<Vec<u8>> = MockCache::new();
         mock_cache.expect_get_if_present().returning(|_| {
             Err(CacheError::FaissRetrievalError(
                 faiss::error::Error::IndexDescription,
@@ -210,7 +211,7 @@ mod tests {
         let mut mock_cache = MockCache::new();
         mock_cache.expect_get_if_present().times(2).returning({
             let completion_clone = completion_json.clone();
-            move |_| Ok(Some(completion_clone.clone()))
+            move |_| Ok(Some(completion_clone.clone().into_bytes()))
         });
 
         // verify put is not called
@@ -317,7 +318,10 @@ mod tests {
         mock_cache
             .expect_put()
             .times(1)
-            .with(eq(embedding.clone()), eq(completion_json.clone()))
+            .with(
+                eq(embedding.clone()),
+                eq(completion_json.clone().into_bytes()),
+            )
             .returning(|_, _| Ok(()));
 
         // upstream response simulation
@@ -328,7 +332,7 @@ mod tests {
                 let resp = UpstreamResponse {
                     status_code: StatusCode::OK,
                     header_map: HeaderMap::new(),
-                    response_body: completion_clone.clone(),
+                    response_body: completion_clone.clone().into_bytes(),
                 };
                 Ok(resp)
             }
@@ -399,7 +403,7 @@ mod tests {
                 let resp = UpstreamResponse {
                     status_code: StatusCode::UNAUTHORIZED,
                     header_map: HeaderMap::new(),
-                    response_body: response_body.to_string(),
+                    response_body: Vec::from(response_body),
                 };
                 Ok(resp)
             }

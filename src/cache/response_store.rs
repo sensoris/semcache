@@ -96,9 +96,10 @@ fn calculate_entry_size<T: Clone + 'static>(response: &T) -> usize {
     let base_size = mem::size_of::<CacheEntry<T>>();
 
     // For String types, calculate actual string content size
+    // For Vec<u8> types, calculate actual byte vector content size
     let response_size =
-        if let Some(string_response) = (response as &dyn Any).downcast_ref::<String>() {
-            string_response.len() // actual string content size
+        if let Some(bytes_response) = (response as &dyn Any).downcast_ref::<Vec<u8>>() {
+            bytes_response.len() // actual byte vector content size
         } else {
             mem::size_of::<T>() // fallback to type size for other types
         };

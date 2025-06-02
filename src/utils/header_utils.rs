@@ -1,13 +1,12 @@
 use std::sync::LazyLock;
 
 use axum::http::{HeaderMap, HeaderName};
-use tracing::debug;
 
 // HEADERS
 pub static PROXY_UPSTREAM_HOST_HEADER: HeaderName = HeaderName::from_static("x-llm-proxy-host");
 pub static PROXY_UPSTREAM_HEADER: HeaderName = HeaderName::from_static("x-llm-proxy-upstream");
 pub static PROXY_PROMPT_LOCATION_HEADER: HeaderName = HeaderName::from_static("x-llm-prompt");
-pub static HOP_HEADERS: LazyLock<[HeaderName; 11]> = LazyLock::new(|| {
+pub static HOP_HEADERS: LazyLock<[HeaderName; 12]> = LazyLock::new(|| {
     [
         HeaderName::from_static("connection"),
         HeaderName::from_static("te"),
@@ -18,15 +17,14 @@ pub static HOP_HEADERS: LazyLock<[HeaderName; 11]> = LazyLock::new(|| {
         HeaderName::from_static("proxy-authorization"),
         HeaderName::from_static("transfer-encoding"),
         HeaderName::from_static("upgrade"),
-        // todo - why do we need to remove this?
-        HeaderName::from_static("content-length"),
         HeaderName::from_static("host"),
+        // Reqwest automatically decompresses zipped responses meaning these headers must be removed
+        HeaderName::from_static("content-length"),
+        HeaderName::from_static("content-encoding"),
     ]
 });
 
 pub fn remove_hop_headers(headers: &mut HeaderMap) {
-    debug!("Removing hop headers");
-
     for header in &*HOP_HEADERS {
         headers.remove(header);
     }

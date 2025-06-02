@@ -10,7 +10,7 @@ use crate::embedding::service::EmbeddingService;
 pub struct AppState {
     pub http_client: Box<dyn Client>,
     pub embedding_service: Box<dyn EmbeddingService>,
-    pub cache: Box<dyn Cache<String>>,
+    pub cache: Box<dyn Cache<Vec<u8>>>,
 }
 
 impl AppState {
