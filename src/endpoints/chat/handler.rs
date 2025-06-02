@@ -45,7 +45,7 @@ pub async fn completions(
         .post_http_request(headers, provider, request_body)
         .await?;
 
-    // only store the response if the status code of the response is correct
+    // only store the response if the status code of the response is 2XX
     if upstream_response.status_code.is_success() {
         state
             .cache
