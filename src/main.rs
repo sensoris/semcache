@@ -25,6 +25,7 @@ use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
 
 const CONFIG_FILE: &'static str = "config.yaml";
+const STARTUP_MESSAGE: &'static str = "Semcache started successfully";
 
 #[tokio::main]
 async fn main() {
@@ -52,7 +53,6 @@ async fn main() {
         .layer(axum::middleware::from_fn(track_metrics)); // Apply middleware only to these routes
 
     let app = Router::new()
-        .route("/", get(|| async { StatusCode::OK }))
         // Provider endpoints
         .merge(provider_routes)
         // Prometheus metrics
@@ -76,7 +76,8 @@ async fn main() {
             panic!("Failed to start listener")
         });
 
-    info!("Semcache started successfully on port {}", port);
+    info!(STARTUP_MESSAGE);
+    info!("Ready to receive requests on {port}");
 
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
