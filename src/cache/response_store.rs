@@ -87,7 +87,7 @@ impl<T: Clone + 'static> ResponseStore<T> {
     }
 }
 
-// TODO (v0): this method is CLAUDE, defo need to evaluate it properly, read online how best to do this
+// TODO (v0): placeholder function while we evaluate better methods
 fn calculate_entry_size<T: Clone + 'static>(response: &T) -> usize {
     use std::any::Any;
     use std::mem;
