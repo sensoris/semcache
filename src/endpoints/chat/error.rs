@@ -19,7 +19,6 @@ pub enum CompletionError {
     #[error("Input validation error: {0}")]
     InvalidRequest(String),
 
-    // todo is there a way to combine this with the above invalidRequest?
     #[error("Input validation error: {0}")]
     InvalidJsonPath(#[from] JsonPathError),
 

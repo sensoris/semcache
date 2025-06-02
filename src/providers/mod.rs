@@ -32,6 +32,7 @@ pub enum ProviderError {
     InvalidGenericProvider(String),
 }
 
+#[derive(Debug)]
 pub enum ProviderType {
     Anthropic,
     OpenAI,

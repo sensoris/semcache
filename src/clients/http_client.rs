@@ -39,7 +39,6 @@ impl Client for HttpClient {
             .send()
             .await?;
         let response = UpstreamResponse::try_from(reqwest_response).await?;
-
         Ok(response)
     }
 }
@@ -52,18 +51,17 @@ impl HttpClient {
 }
 
 impl UpstreamResponse {
-    pub async fn try_from(reqwest_response: Response) -> Result<Self, Error> {
-        let mut response_headers = reqwest_response.headers().clone();
-        // todo prepare response headers
+    pub async fn try_from(response: Response) -> Result<Self, Error> {
+        let status = response.status();
+
+        let mut response_headers = response.headers().clone();
         remove_hop_headers(&mut response_headers);
 
-        // Get the body as bytes (not JSON)
-        let body_bytes = reqwest_response.bytes().await?;
-
-        // todo, am converting into string, maybe its okay to return bytes?
+        let body_bytes = response.bytes().await?;
         let response_string = String::from_utf8_lossy(&body_bytes).to_string();
 
         Ok(Self {
+            status_code: status,
             header_map: response_headers,
             response_body: response_string,
         })

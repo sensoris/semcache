@@ -44,7 +44,6 @@ async fn main() {
     ));
 
     let provider_routes = Router::new()
-        .route("/", get(|| async { StatusCode::OK }))
         // Provider endpoints
         .route(ProviderType::OpenAI.path(), post(openai_handler))
         .route(ProviderType::Anthropic.path(), post(anthropic_handler))
