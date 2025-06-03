@@ -45,7 +45,6 @@ async fn main() {
     ));
 
     let provider_routes = Router::new()
-        .route("/", get(|| async { StatusCode::OK }))
         // Provider endpoints
         .route(ProviderType::OpenAI.path(), post(openai_handler))
         .route(ProviderType::Anthropic.path(), post(anthropic_handler))
@@ -53,6 +52,8 @@ async fn main() {
         .layer(axum::middleware::from_fn(track_metrics)); // Apply middleware only to these routes
 
     let app = Router::new()
+        // healthcheck
+        .route("/", get(|| async { StatusCode::OK }))
         // Provider endpoints
         .merge(provider_routes)
         // Prometheus metrics
