@@ -37,6 +37,8 @@ async fn main() {
         ))
         .init();
 
+    info!("Starting application...");
+
     // metrics setup
     init_metrics();
 

@@ -1,0 +1,15 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'semcache'
+    static_configs:
+      # Address of your Semcache server - this is an example assuming it's running on the host machine at 8080
+      - targets: ['host.docker.internal:8080']
+    scrape_interval: 5s
+    metrics_path: '/metrics'
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
