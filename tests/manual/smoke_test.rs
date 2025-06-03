@@ -8,8 +8,8 @@ use tokio::time::sleep;
 
 const STARTUP_MESSAGE: &'static str = "Semcache started successfully";
 
-#[tokio::test]
-async fn smoke_test() {
+#[tokio::main]
+async fn main() {
     let container = GenericImage::new("semcache", "latest")
         .with_exposed_port(8080.tcp())
         .with_wait_for(WaitFor::message_on_stdout(STARTUP_MESSAGE))
@@ -39,6 +39,6 @@ async fn smoke_test() {
             }
         }
     }
-
     assert!(success, "Axum server did not respond with 200 OK at /");
+    println!("Smoke test passed");
 }

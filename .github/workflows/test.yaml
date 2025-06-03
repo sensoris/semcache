@@ -9,7 +9,7 @@ env:
 
 jobs:
   unit-test:
-    name: Lint & Unit Test
+    name: Lint & Test
     runs-on: ubuntu-latest
     container: ghcr.io/sensoris/faiss-base-image:latest
     steps:
@@ -18,13 +18,13 @@ jobs:
         run: rustup default stable
       - name: Cargo format check
         run: cargo fmt --check
-      - name: Run unit tests
-        run: cargo test --bins -- --nocapture
+      - name: Run tests
+        run: cargo test -- --nocapture
         env:
           LD_LIBRARY_PATH: "/usr/local/lib"
 
   integration-test:
-    name: Integration Test
+    name: Container Test
     runs-on: ubuntu-latest
     needs: unit-test
     #if: github.ref == 'refs/heads/master' && github.event_name == 'push'
@@ -34,5 +34,5 @@ jobs:
         run: rustup default stable
       - name: Build semcache container
         run: docker build -f docker/Dockerfile -t semcache .
-      - name: Run integration tests
-        run: cargo test --test '*' -- --nocapture
+      - name: Run container startup test
+        run: cargo run --bin smoke_test
