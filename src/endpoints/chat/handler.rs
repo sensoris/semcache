@@ -60,7 +60,7 @@ pub async fn completions(
         upstream_response.header_map,
         upstream_response.response_body,
     )
-        .into_response(); // Convert tuple to Response
+        .into_response();
 
     debug!("Cache miss - calling the upstream LLM provider");
     CACHE_MISS.inc();
