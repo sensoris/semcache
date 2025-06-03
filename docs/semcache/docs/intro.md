@@ -2,7 +2,7 @@
 sidebar_position: 1
 ---
 
-# Introduction to semcache
+# Introduction to Semcache
 
 **semcache** is a semantic caching proxy for LLM API requests that intelligently caches responses based on semantic similarity rather than exact string matches.
 
