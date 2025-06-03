@@ -77,7 +77,7 @@ async fn main() {
             panic!("Failed to start listener")
         });
 
-    info!(STARTUP_MESSAGE);
+    info!("{}", STARTUP_MESSAGE);
     info!("Ready to receive requests on {port}");
 
     axum::serve(listener, app)
