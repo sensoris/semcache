@@ -1,6 +1,6 @@
 # Set up Semcache monitoring with Prometheus / Grafana
 
-This project provides an example configuration for setting up a Prometheus and Grafana monitoring stack for you Semcache instance.
+This project provides an example configuration for setting up a Prometheus and Grafana monitoring stack for your Semcache instance.
 
 ## Running
 
