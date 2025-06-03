@@ -305,8 +305,8 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 7,
-        "w": 24,
+        "h": 6,
+        "w": 12,
         "x": 0,
         "y": 6
       },
@@ -351,12 +351,76 @@
       "type": "timeseries"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 6
+      },
+      "id": 14,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.0.1",
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum by (cache_status) (\n  semcache_chat_completion_http_requests_sum\n) \n/ \nsum by (cache_status) (\n  semcache_chat_completion_http_requests_count\n)",
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Average request latency",
+      "type": "stat"
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 13
+        "y": 12
       },
       "id": 8,
       "panels": [],
@@ -428,7 +492,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 14
+        "y": 13
       },
       "id": 3,
       "options": {
@@ -554,7 +618,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 22
+        "y": 21
       },
       "id": 1,
       "options": {
@@ -653,7 +717,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 28
+        "y": 27
       },
       "id": 7,
       "options": {
@@ -708,5 +772,5 @@
   "timezone": "",
   "title": "Semcache",
   "uid": "chat-api-dashboard",
-  "version": 1
+  "version": 2
 }

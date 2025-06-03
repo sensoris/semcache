@@ -1,7 +1,8 @@
+use axum::response::{IntoResponse, Response};
+
 use axum::{
     extract::{Json, State},
     http::{StatusCode, header::HeaderMap},
-    response::IntoResponse,
 };
 use serde_json::Value;
 use std::sync::Arc;
@@ -9,7 +10,7 @@ use tracing::debug;
 
 use super::error::CompletionError;
 use crate::app_state::AppState;
-use crate::metrics::metrics::{CACHE_HIT, CACHE_MISS};
+use crate::metrics::metrics::{CACHE_HIT, CACHE_MISS, CacheStatus};
 use crate::providers::ProviderType;
 use crate::utils::{
     header_utils::PROXY_PROMPT_LOCATION_HEADER, json_extract::extract_prompt_from_path,
@@ -20,7 +21,7 @@ pub async fn completions(
     headers: HeaderMap,
     Json(request_body): Json<Value>,
     provider: ProviderType,
-) -> Result<impl IntoResponse, CompletionError> {
+) -> Result<Response, CompletionError> {
     let prompt = extract_prompt_from_path(
         &request_body,
         provider.prompt_json_path(headers.get(&PROXY_PROMPT_LOCATION_HEADER))?,
@@ -28,18 +29,19 @@ pub async fn completions(
     let embedding = state.embedding_service.embed(&prompt)?;
 
     if let Some(saved_response) = state.cache.get_if_present(&embedding)? {
-        debug!("Cache hit - returning cached response");
-        CACHE_HIT.inc();
-
         // Return cached response with 200 OK and minimal headers
         let mut response_headers = HeaderMap::new();
         response_headers.insert("X-Cache-Status", "hit".parse().unwrap());
         response_headers.insert("content-type", "application/json".parse().unwrap());
-        return Ok((StatusCode::OK, response_headers, saved_response));
-    };
 
-    debug!("Cache miss - calling the upstream LLM provider");
-    CACHE_MISS.inc();
+        let mut response = (StatusCode::OK, response_headers, saved_response).into_response();
+
+        debug!("Cache hit - returning cached response");
+        CACHE_HIT.inc();
+        response.extensions_mut().insert(CacheStatus::Hit);
+
+        return Ok(response);
+    };
 
     let upstream_response = state
         .http_client
@@ -53,11 +55,18 @@ pub async fn completions(
             .put(embedding, upstream_response.response_body.clone())?;
     }
 
-    Ok((
+    let mut response = (
         upstream_response.status_code,
         upstream_response.header_map,
         upstream_response.response_body,
-    ))
+    )
+        .into_response(); // Convert tuple to Response
+
+    debug!("Cache miss - calling the upstream LLM provider");
+    CACHE_MISS.inc();
+    response.extensions_mut().insert(CacheStatus::Miss);
+
+    Ok(response)
 }
 
 #[cfg(test)]
