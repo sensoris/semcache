@@ -1,8 +1,6 @@
 name: "Test"
 on:
-  push:
-    paths-ignore:
-      - 'docs/**'
+  push
 
 env:
   CARGO_NET_GIT_FETCH_WITH_CLI: true
