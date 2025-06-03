@@ -137,4 +137,4 @@ See our [full roadmap](https://docs.semcache.io/roadmap) for upcoming features:
 
 ---
 
-Built with ❤️ in Rust • [Documentation](https://docs.semcache.io) • [GitHub Issues](https://github.com/sensoris/semcache-rs/issues)
+Built with ❤️ in Rust • [Documentation](https://docs.semcache.io) • [GitHub Issues](https://github.com/sensoris/semcache/issues)
