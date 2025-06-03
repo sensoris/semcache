@@ -277,7 +277,7 @@ mod tests {
     #[test]
     fn put_should_evict_when_memory_limit_reached() {
         let embedding = vec![0.1, 0.2, 0.3];
-        let response = String::from("A".repeat(100));
+        let response = "A".repeat(100).into_bytes();
 
         // given
         let mut mock_store = MockSemanticStore::new();

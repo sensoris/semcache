@@ -5,7 +5,7 @@ use axum::{
 };
 use serde_json::Value;
 use std::sync::Arc;
-use tracing::info;
+use tracing::debug;
 
 use super::error::CompletionError;
 use crate::app_state::AppState;
@@ -25,33 +25,36 @@ pub async fn completions(
         &request_body,
         provider.prompt_json_path(headers.get(&PROXY_PROMPT_LOCATION_HEADER))?,
     )?;
-    info!("prompt: {prompt}");
     let embedding = state.embedding_service.embed(&prompt)?;
 
     if let Some(saved_response) = state.cache.get_if_present(&embedding)? {
-        info!("CACHE HIT");
+        debug!("Cache hit - returning cached response");
         CACHE_HIT.inc();
+
         // Return cached response with 200 OK and minimal headers
         let mut response_headers = HeaderMap::new();
         response_headers.insert("X-Cache-Status", "hit".parse().unwrap());
+        response_headers.insert("content-type", "application/json".parse().unwrap());
         return Ok((StatusCode::OK, response_headers, saved_response));
     };
 
-    info!("CACHE_MISS");
+    debug!("Cache miss - calling the upstream LLM provider");
     CACHE_MISS.inc();
 
-    // otherwise, send upstream request
     let upstream_response = state
         .http_client
         .post_http_request(headers, provider, request_body)
         .await?;
 
-    state
-        .cache
-        .put(embedding, upstream_response.response_body.clone())?;
+    // only store the response if the status code of the response is 2XX
+    if upstream_response.status_code.is_success() {
+        state
+            .cache
+            .put(embedding, upstream_response.response_body.clone())?;
+    }
 
     Ok((
-        StatusCode::OK,
+        upstream_response.status_code,
         upstream_response.header_map,
         upstream_response.response_body,
     ))
@@ -87,7 +90,7 @@ mod tests {
             .returning(move |_| Ok(embedding.clone()));
 
         // set up cache mock
-        let mut mock_cache = MockCache::new();
+        let mut mock_cache: MockCache<Vec<u8>> = MockCache::new();
         mock_cache.expect_get_if_present().returning(|_| {
             Err(CacheError::FaissRetrievalError(
                 faiss::error::Error::IndexDescription,
@@ -208,7 +211,7 @@ mod tests {
         let mut mock_cache = MockCache::new();
         mock_cache.expect_get_if_present().times(2).returning({
             let completion_clone = completion_json.clone();
-            move |_| Ok(Some(completion_clone.clone()))
+            move |_| Ok(Some(completion_clone.clone().into_bytes()))
         });
 
         // verify put is not called
@@ -253,7 +256,7 @@ mod tests {
         assert!(result.is_ok());
         let response = result.unwrap().into_response();
         assert_eq!(response.status(), StatusCode::OK);
-        let response_json = extract_json_response(response).await;
+        let response_json = extract_response(response).await;
         assert_eq!(response_json, completion_json);
 
         // Test Anthropic endpoint
@@ -282,7 +285,7 @@ mod tests {
         assert!(result.is_ok());
         let response = result.unwrap().into_response();
         assert_eq!(response.status(), StatusCode::OK);
-        let response_json = extract_json_response(response).await;
+        let response_json = extract_response(response).await;
         assert_eq!(response_json, completion_json);
     }
 
@@ -315,7 +318,10 @@ mod tests {
         mock_cache
             .expect_put()
             .times(1)
-            .with(eq(embedding.clone()), eq(completion_json.clone()))
+            .with(
+                eq(embedding.clone()),
+                eq(completion_json.clone().into_bytes()),
+            )
             .returning(|_, _| Ok(()));
 
         // upstream response simulation
@@ -324,8 +330,9 @@ mod tests {
             let completion_clone = completion_json.clone();
             move |_, _, _| {
                 let resp = UpstreamResponse {
+                    status_code: StatusCode::OK,
                     header_map: HeaderMap::new(),
-                    response_body: completion_clone.clone(),
+                    response_body: completion_clone.clone().into_bytes(),
                 };
                 Ok(resp)
             }
@@ -361,11 +368,82 @@ mod tests {
         assert!(result.is_ok());
         let response = result.unwrap().into_response();
         assert_eq!(response.status(), StatusCode::OK);
-        let response_json = extract_json_response(response).await;
+        let response_json = extract_response(response).await;
         assert_eq!(response_json, completion_json);
     }
 
-    async fn extract_json_response(response: Response) -> String {
+    #[tokio::test]
+    async fn should_not_cache_response_when_non_200_ok_response() {
+        // given
+        let prompt = "What is semcache?";
+        let embedding = vec![0.1, 0.2, 0.3];
+        let response_body = "Error from LLM!";
+
+        // embed returns vector
+        let mut mock_embed = MockEmbeddingService::new();
+        mock_embed.expect_embed().times(1).returning({
+            let embedding_clone = embedding.clone();
+            move |_| Ok(embedding_clone.clone())
+        });
+
+        // cache miss
+        let mut mock_cache = MockCache::new();
+        mock_cache
+            .expect_get_if_present()
+            .times(1)
+            .returning(|_| Ok(None));
+
+        // verify put is called once
+        mock_cache.expect_put().times(0);
+
+        // upstream response simulation
+        let mut mock_client = MockClient::new();
+        mock_client.expect_post_http_request().times(1).returning({
+            move |_, _, _| {
+                let resp = UpstreamResponse {
+                    status_code: StatusCode::UNAUTHORIZED,
+                    header_map: HeaderMap::new(),
+                    response_body: Vec::from(response_body),
+                };
+                Ok(resp)
+            }
+        });
+
+        let app_state = Arc::new(AppState {
+            embedding_service: Box::new(mock_embed),
+            cache: Box::new(mock_cache),
+            http_client: Box::new(mock_client),
+        });
+
+        let request_body = json!({
+            "messages": [{
+                "role": "user",
+                "content": prompt
+            }],
+            "model": "gpt-4"
+        });
+
+        let mut headers = HeaderMap::new();
+        headers.insert("Authorization", "Bearer dummy".parse().unwrap());
+        headers.insert("X-LLM-PROXY-UPSTREAM", "http://localhost".parse().unwrap());
+
+        let result = completions(
+            State(app_state),
+            headers,
+            axum::Json(request_body),
+            ProviderType::OpenAI,
+        )
+        .await;
+
+        // then
+        assert!(result.is_ok());
+        let response = result.unwrap().into_response();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        let response = extract_response(response).await;
+        assert_eq!(response, response_body.to_string());
+    }
+
+    async fn extract_response(response: Response) -> String {
         let body = axum::body::to_bytes(response.into_body(), usize::MAX)
             .await
             .unwrap();

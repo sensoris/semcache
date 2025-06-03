@@ -15,8 +15,9 @@ static OPEN_AI_DEFAULT_URL: LazyLock<Url> =
 
 // REST METHOD PATH
 static ANTHROPIC_REST_PATH: &str = "/v1/messages";
-static OPEN_AI_REST_PATH: &str = "/v1/chat/completions";
+static OPEN_AI_REST_PATH_V1: &str = "/v1/chat/completions";
 static GENERIC_REST_PATH: &str = "/semcache//v1/chat";
+pub static OPEN_AI_REST_PATH: &str = "/chat/completions";
 
 // JSON PROMPT PATH
 static ANTHROPIC_PROMPT_PATH: &str = "$.messages[-1].content";
@@ -32,6 +33,7 @@ pub enum ProviderError {
     InvalidGenericProvider(String),
 }
 
+#[derive(Debug)]
 pub enum ProviderType {
     Anthropic,
     OpenAI,
@@ -42,7 +44,7 @@ impl ProviderType {
     pub fn path(&self) -> &'static str {
         match self {
             ProviderType::Anthropic => ANTHROPIC_REST_PATH,
-            ProviderType::OpenAI => OPEN_AI_REST_PATH,
+            ProviderType::OpenAI => OPEN_AI_REST_PATH_V1,
             ProviderType::Generic => GENERIC_REST_PATH,
         }
     }
@@ -82,7 +84,7 @@ impl ProviderType {
             let base_url = Url::parse(proxy_host.to_str()?)?;
             return match self {
                 ProviderType::Anthropic => Ok(base_url.join(ANTHROPIC_REST_PATH)?),
-                ProviderType::OpenAI => Ok(base_url.join(OPEN_AI_REST_PATH)?),
+                ProviderType::OpenAI => Ok(base_url.join(OPEN_AI_REST_PATH_V1)?),
                 ProviderType::Generic => Err(ProviderError::InvalidGenericProvider(String::from(
                     "please use the X-LLM-PROXY-UPSTREAM header to specify server to forward requests to",
                 ))),

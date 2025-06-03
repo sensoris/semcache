@@ -1,80 +1,140 @@
-## Call service
+# ⚡ semcache
 
-```shell
-curl http://localhost:8080/chat/completions \
- -H "host: api.openai.com" \
- -H "Content-Type: application/json" \
- -H "Authorization: Bearer $OPENAI_API_KEY" \
- -H "X-LLM-Proxy-Upstream: https://api.openai.com/v1/chat/completions" \
- -d '{ "model": "gpt-4o", "messages": [{"role": "user", "content": "Hello?"}]}'
+`semcache` is a semantic caching layer between you and your LLM. 
+
+## Quick Start
+
+```bash
+docker run -p 8080:8080 -e SEMCACHE_PORT=8080 semcache:latest
 ```
 
-## Building faiss
+```python
+from openai import OpenAI
 
-Following commands should be executed in faiss root
+# Point to your Semcache host instead of OpenAI
+client = OpenAI(base_url="http://localhost:8080", api_key="your-key")
 
-### Generate build files
+# Cache miss - continues to OpenAI
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "What is the capital of France?"}]
+)
 
-```shell
-cmake -B build \
-  -DFAISS_ENABLE_PYTHON=OFF \
-  -DFAISS_ENABLE_GPU=OFF \
-  -DBUILD_TESTING=OFF \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DFAISS_ENABLE_C_API=ON \
-  -DBUILD_SHARED_LIBS=ON \
-  .
+# Cache hit - returns instantly 
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "What's France's capital city?"}]
+)
 ```
 
-### build the artifact
+## Features
 
-```shell
-cmake --build build -j$(nproc)
+- **🧠 Completely in-memory** - Prompts, responses and the vector database are stored in-memory
+- **🎯 Flexible by design** - Can work with your custom or private LLM APIs
+- **🔌 Support for major LLM APIs** - OpenAI, Anthropic, Gemini, and more
+- **⚡ HTTP proxy mode** - Drop-in replacement that reduces costs and latency
+- **🔄 Read-aside cache** - Directly put and get from the cache via an API
+- **📈 Prometheus metrics** - Full observability out of the box
+- **📊 Build-in dashboard** - Monitor cache performance at `/admin`
+
+For more information and guides refer to our extensive docs: [docs.semcache.io](https://docs.semcache.io)
+
+## How it works?
+
+Semcache accelerates LLM applications by caching responses based on semantic similarity.
+
+When you make a request Semcache first searches for previously cached answers to similar prompts and delivers them immediately. This eliminates redundant API calls, reducing both latency and costs.
+
+Semcache also operates in a "read-aside" mode, allowing you to load prompts and responses yourself thus creating a knowledge base for your applications.
+
+## Example Integrations
+
+### HTTP Proxy
+
+**LangChain**
+```python
+from langchain.llms import OpenAI
+
+llm = OpenAI(
+    openai_api_base="http://localhost:8080",
+    openai_api_key="your-openai-key"
+)
 ```
 
-### install onto your system
+**LiteLLM**
+```python
+import litellm
 
-```shell
-cmake --install build
+# Point LiteLLM to Semcache instead of OpenAI directly
+litellm.api_base = "http://localhost:8080"
+```
+### Read Aside Cache
+
+```python
+from semcache import Semcache
+
+# Initialize Semcache with API key
+cache = Semcache(api_key="your-api-key-here",
+                 host="self-hosted-or-cloud-endpoint.com")
+
+# Cache a LLM response
+cache.put("What is the capital of France?",
+          "Paris")
+
+# Retrieve cached responses
+assert "Paris" == cache.get("What's France's capital city called?")
 ```
 
-## Docker
+## Configuration
 
-The Dockerfile uses the base image created using `docker/Dockerfile.faiss`
+Configure via environment variables or `config.yaml`:
 
-Build:
-
-```shell
-docker build -f Dockerfile -t semcache-rs .
+```yaml
+log_level: info
+port: 8080
 ```
 
-Running:
-
-```shell
-docker run -p 8080:8080 semcache-rs
+Environment variables (prefix with `SEMCACHE_`):
+```bash
+SEMCACHE_PORT=8080
+SEMCACHE_LOG_LEVEL=debug
 ```
 
-Running with your own configuration:
+## Monitoring
 
-```shell
-docker run -p 8080:8080 --env-file my_env_file.env semcache-rs
-```
+### Prometheus Metrics
 
-For an example of how your env could look, have a look at docker/example.env
-In order to see which configuration values are currently supported, look at the config.yaml file. An environment variable maps to a configuration key by stripping the SEMCACHE\_ prefix, and converting the remaining string to lowercase.
+Semcache emits comprehensive Prometheus metrics for production monitoring.
 
-So in order to override the "port" configuration, define SEMCACHE_PORT in your environment file.
+Check out our `/monitoring` directory for Grafana dashboard setup examples.
 
-You can also override single variables using the -e flag.
+### Built-in Dashboard
+Access the admin dashboard at `http://localhost:8080/admin` to monitor:
+- Cache hit rates
+- Response times
+- Memory usage
+- Recent queries
 
-## Scripts
+## Enterprise
 
-Easy way to send a request:
+Our managed version of Semcache provides you with semantic caching as a service.
 
-```shell
-➜ python scripts/request.py openai $API_KEY "What is the capital of France?"
+Features we offer:
+- **Custom text embedding models** for your specific business 
+- **Persistent storage** allowing you to build application memory over time 
+- **In-depth analysis** of your LLM responses
+- **SLA support** and dedicated engineering resources
 
-⏱️  Request completed in 894ms
-==================================================
-The capital of France is Paris.
-```
+Contact us at [contact@semcache.io](mailto:contact@semcache.io)
+
+## Contributing
+
+Interested in contributing? Contributions to semcache are welcome! Feel free to make a PR.
+
+## Roadmap
+
+See our [full roadmap](https://docs.semcache.io/roadmap) for upcoming features:
+
+---
+
+Built with ❤️ in Rust • [Documentation](https://docs.semcache.io) • [GitHub Issues](https://github.com/sensoris/semcache/issues)

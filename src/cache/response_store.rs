@@ -87,7 +87,7 @@ impl<T: Clone + 'static> ResponseStore<T> {
     }
 }
 
-// TODO (v0): this method is CLAUDE, defo need to evaluate it properly, read online how best to do this
+// TODO (v0): placeholder function while we evaluate better methods
 fn calculate_entry_size<T: Clone + 'static>(response: &T) -> usize {
     use std::any::Any;
     use std::mem;
@@ -95,10 +95,10 @@ fn calculate_entry_size<T: Clone + 'static>(response: &T) -> usize {
     // Base size of the CacheEntry struct
     let base_size = mem::size_of::<CacheEntry<T>>();
 
-    // For String types, calculate actual string content size
+    // For Vec<u8> types, calculate actual byte vector content size
     let response_size =
-        if let Some(string_response) = (response as &dyn Any).downcast_ref::<String>() {
-            string_response.len() // actual string content size
+        if let Some(bytes_response) = (response as &dyn Any).downcast_ref::<Vec<u8>>() {
+            bytes_response.len() // actual byte vector content size
         } else {
             mem::size_of::<T>() // fallback to type size for other types
         };
