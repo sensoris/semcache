@@ -1,0 +1,32 @@
+name: "Documentation Build"
+
+on:
+  push:
+    paths:
+      - 'docs/semcache/**'
+  pull_request:
+    paths:
+      - 'docs/semcache/**'
+
+jobs:
+  build-docs:
+    name: Build Documentation
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs/semcache
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'yarn'
+          cache-dependency-path: docs/semcache/yarn.lock
+      
+      - name: Install dependencies
+        run: yarn
+      
+      - name: Build documentation
+        run: yarn build
