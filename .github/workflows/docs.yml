@@ -21,10 +21,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'yarn'
-          cache-dependency-path: docs/semcache/yarn.lock
-      
+          node-version: '21'
+
       - name: Install dependencies
         run: yarn
       
