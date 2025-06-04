@@ -242,6 +242,5 @@ Provider support contributions are welcome! See the development docs for impleme
 
 ## Next Steps
 
-- [Provider Setup Guide](../guides/provider-setup.md) - Detailed setup for each provider
 - [Headers Reference](./headers.md) - Complete header documentation
 - [Configuration](../configuration/cache-settings.md) - Optimize cache settings per provider

@@ -273,4 +273,3 @@ embedding:
 
 - [Cache Settings](./cache-settings.md) - Configure caching behavior
 - [Monitoring](./monitoring.md) - Track embedding performance
-- [Performance Tuning](../guides/performance-tuning.md) - Optimize similarity matching

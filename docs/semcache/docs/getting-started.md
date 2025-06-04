@@ -98,6 +98,4 @@ python scripts/request.py openai $OPENAI_API_KEY "What is the capital of France?
 ## Next Steps
 
 - [Docker Installation](./installation/docker.md) - Complete Docker setup guide
-- [Local Development](./installation/local.md) - Build from source
 - [API Reference](./api/chat-completions.md) - Full API documentation
-- [Provider Setup](./guides/provider-setup.md) - Configure different LLM providers

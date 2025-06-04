@@ -4,11 +4,11 @@ sidebar_position: 1
 
 # Introduction to Semcache
 
-**semcache** is a semantic caching proxy for LLM API requests that intelligently caches responses based on semantic similarity rather than exact string matches.
+**Semcache** is a semantic caching proxy for LLM API requests that intelligently caches responses based on semantic similarity.
 
 ## What is Semantic Caching?
 
-Traditional caching systems only match exact requests. semcache uses vector embeddings to understand the meaning behind prompts, allowing it to serve cached responses for semantically similar queries even when the wording differs.
+Traditional caching systems only match exact requests. Semcache uses vector embeddings to understand the meaning behind prompts, allowing it to serve cached responses for semantically similar queries even when the wording differs.
 
 For example, these prompts would be considered similar:
 - "What is the capital of France?"

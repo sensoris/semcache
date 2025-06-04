@@ -188,4 +188,3 @@ When no similar request is found, the response comes from the upstream LLM provi
 
 - [Headers Reference](./headers.md) - Detailed header documentation
 - [Supported Providers](./supported-providers.md) - Provider-specific setup
-- [Performance Tuning](../guides/performance-tuning.md) - Optimize cache hit rates

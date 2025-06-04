@@ -229,4 +229,3 @@ curl https://api.openai.com/v1/chat/completions \
 
 - [Supported Providers](./supported-providers.md) - Provider-specific configuration
 - [Chat Completions](./chat-completions.md) - Complete API reference  
-- [Provider Setup](../guides/provider-setup.md) - Detailed setup guides

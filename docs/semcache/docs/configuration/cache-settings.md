@@ -231,4 +231,3 @@ When configuration files are implemented:
 
 - [Embedding Model](./embedding-model.md) - Detailed embedding configuration
 - [Monitoring](./monitoring.md) - Set up metrics and alerts
-- [Performance Tuning](../guides/performance-tuning.md) - Optimize for your workload
