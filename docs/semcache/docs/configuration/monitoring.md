@@ -369,4 +369,3 @@ metrics:
 
 - [Admin Dashboard](../monitoring/admin-dashboard.md) - Detailed dashboard guide
 - [Metrics Reference](../monitoring/metrics.md) - Complete metrics documentation
-- [Troubleshooting](../monitoring/troubleshooting.md) - Common monitoring issues

@@ -21,8 +21,6 @@ const sidebars: SidebarsConfig = {
       label: 'Installation & Deployment',
       items: [
         'installation/docker',
-        'installation/local',
-        'installation/requirements',
       ],
     },
     {
@@ -41,15 +39,6 @@ const sidebars: SidebarsConfig = {
         'configuration/cache-settings',
         'configuration/embedding-model',
         'configuration/monitoring',
-      ],
-    },
-    {
-      type: 'category',
-      label: 'Usage Guides',
-      items: [
-        'guides/quick-start',
-        'guides/provider-setup',
-        'guides/performance-tuning',
       ],
     },
     {

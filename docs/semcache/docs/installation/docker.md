@@ -147,5 +147,4 @@ Common issues:
 ## Next Steps
 
 - [API Reference](../api/chat-completions.md) - Learn the API endpoints
-- [Provider Setup](../guides/provider-setup.md) - Configure LLM providers
 - [Monitoring](../monitoring/admin-dashboard.md) - Use the admin dashboard
