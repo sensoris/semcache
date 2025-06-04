@@ -60,7 +60,7 @@ git clone https://github.com/sensoris/semcache.git
 cd semcache
 
 # Build the Docker image
-docker build -f docker/Dockerfile -t semcache-rs .
+docker build -f docker/Dockerfile -t semcache .
 ```
 
 The build process uses a multi-stage build with:

@@ -144,14 +144,14 @@ export LD_LIBRARY_PATH="/usr/local/lib:$LD_LIBRARY_PATH"
 # Build in release mode
 cargo build --release
 
-# The binary will be at: target/release/semcache-rs
+# The binary will be at: target/release/semcache
 ```
 
 ## Run semcache
 
 ```bash
 # Run the built binary
-./target/release/semcache-rs
+./target/release/semcache
 ```
 
 semcache will start on `http://localhost:8080`.

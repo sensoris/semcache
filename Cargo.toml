@@ -1,7 +1,8 @@
 [package]
-name = "semcache-rs"
+name = "semcache"
 version = "0.1.0"
 edition = "2024"
+default-run = "semcache"
 
 [dependencies]
 axum = "0.8"

@@ -2880,7 +2880,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "semcache-rs"
+name = "semcache"
 version = "0.1.0"
 dependencies = [
  "askama",
