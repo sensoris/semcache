@@ -33,7 +33,6 @@ response = client.chat.completions.create(
 - **🎯 Flexible by design** - Can work with your custom or private LLM APIs
 - **🔌 Support for major LLM APIs** - OpenAI, Anthropic, Gemini, and more
 - **⚡ HTTP proxy mode** - Drop-in replacement that reduces costs and latency
-- **🔄 Cache-aside** - Directly put and get from the cache via an API
 - **📈 Prometheus metrics** - Full observability out of the box
 - **📊 Build-in dashboard** - Monitor cache performance at `/admin`
 
