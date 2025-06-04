@@ -4,9 +4,13 @@
 
 ## Quick Start
 
+Start the Semcache Docker image:
+
 ```bash
-docker run -p 8080:8080 -e SEMCACHE_PORT=8080 semcache:latest
+docker run -p 8080:8080 ghcr.io/sensoris/semcache:latest
 ```
+
+Configure your application e.g with the OpenAI Python SDK:
 
 ```python
 from openai import OpenAI
@@ -35,6 +39,7 @@ response = client.chat.completions.create(
 - **⚡ HTTP proxy mode** - Drop-in replacement that reduces costs and latency
 - **📈 Prometheus metrics** - Full observability out of the box
 - **📊 Build-in dashboard** - Monitor cache performance at `/admin`
+- **📤 Smart eviction** - LRU cache eviction policy
 
 For more information and guides refer to our extensive docs: [docs.semcache.io](https://docs.semcache.io)
 
@@ -110,7 +115,7 @@ Semcache emits comprehensive Prometheus metrics for production monitoring.
 Check out our `/monitoring` directory for our custom Grafana dashboard.
 
 ### Built-in Dashboard
-Access the admin dashboard at `http://localhost:8080/admin` to monitor:
+Access the admin dashboard at `/admin` to monitor:
 - Cache hit rates
 - Response times
 - Memory usage
