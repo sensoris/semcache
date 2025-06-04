@@ -82,6 +82,7 @@ pub fn init_metrics() {
     initialize_metrics_collection();
 }
 
+// Axum middlelayer to track chat completion requests
 pub async fn track_metrics(req: Request, next: Next) -> impl IntoResponse {
     let start = Instant::now();
     let path = if let Some(matched_path) = req.extensions().get::<MatchedPath>() {

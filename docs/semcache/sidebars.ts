@@ -54,11 +54,10 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: 'Monitoring & Operations',
+      label: 'Monitoring',
       items: [
         'monitoring/metrics',
         'monitoring/admin-dashboard',
-        'monitoring/troubleshooting',
       ],
     },
   ],

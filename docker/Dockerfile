@@ -24,6 +24,9 @@ COPY --from=builder /app/target/release/semcache-rs /usr/local/bin/semcache-rs
 COPY ./assets ./app/assets
 COPY ./config.yaml ./app/config.yaml
 
+# Cached vector embedding models
+COPY ./.fastembed_cache ./app/.fastembed_cache
+
 # Point linker to faiss installation
 ENV LD_LIBRARY_PATH="/usr/local/lib"
 

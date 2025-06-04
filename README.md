@@ -1,6 +1,6 @@
 # ⚡ semcache
 
-`semcache` is a semantic caching layer between you and your LLM. 
+`semcache` is a semantic caching layer for your LLM applications. 
 
 ## Quick Start
 
@@ -33,19 +33,20 @@ response = client.chat.completions.create(
 - **🎯 Flexible by design** - Can work with your custom or private LLM APIs
 - **🔌 Support for major LLM APIs** - OpenAI, Anthropic, Gemini, and more
 - **⚡ HTTP proxy mode** - Drop-in replacement that reduces costs and latency
-- **🔄 Read-aside cache** - Directly put and get from the cache via an API
 - **📈 Prometheus metrics** - Full observability out of the box
 - **📊 Build-in dashboard** - Monitor cache performance at `/admin`
 
 For more information and guides refer to our extensive docs: [docs.semcache.io](https://docs.semcache.io)
 
-## How it works?
+**Semcache is still in beta and being actively developed.**
+
+## How it works
 
 Semcache accelerates LLM applications by caching responses based on semantic similarity.
 
 When you make a request Semcache first searches for previously cached answers to similar prompts and delivers them immediately. This eliminates redundant API calls, reducing both latency and costs.
 
-Semcache also operates in a "read-aside" mode, allowing you to load prompts and responses yourself thus creating a knowledge base for your applications.
+Semcache also operates in a "cache-aside" mode, allowing you to load prompts and responses yourself thus creating a knowledge base for your applications.
 
 ## Example Integrations
 
@@ -68,7 +69,7 @@ import litellm
 # Point LiteLLM to Semcache instead of OpenAI directly
 litellm.api_base = "http://localhost:8080"
 ```
-### Read Aside Cache
+### Cache-aside
 
 ```python
 from semcache import Semcache
@@ -106,7 +107,7 @@ SEMCACHE_LOG_LEVEL=debug
 
 Semcache emits comprehensive Prometheus metrics for production monitoring.
 
-Check out our `/monitoring` directory for Grafana dashboard setup examples.
+Check out our `/monitoring` directory for our custom Grafana dashboard.
 
 ### Built-in Dashboard
 Access the admin dashboard at `http://localhost:8080/admin` to monitor:

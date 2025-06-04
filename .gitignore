@@ -2,3 +2,4 @@
 .fastembed_cache
 **/.claude/settings.local.json
 assets/metrics_history.json
+.vscode/
