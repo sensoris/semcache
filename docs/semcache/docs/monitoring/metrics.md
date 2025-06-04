@@ -23,4 +23,4 @@ http://your-semcache-host/metrics
 
 ## Custom Grafana Dashboard 
 
-For detailed monitoring setup including Grafana dashboards and alerting configurations, see the [monitoring directory](https://github.com/sensoris/semcache-rs/tree/main/monitoring) in our GitHub repository.
+For detailed monitoring setup including Grafana dashboards and alerting configurations, see the [monitoring directory](https://github.com/sensoris/semcache/tree/main/monitoring) in our GitHub repository.

@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy FAISS runtime artifacts, built binary, and project files needed at runtime
 COPY --from=builder /usr/local /usr/local
-COPY --from=builder /app/target/release/semcache-rs /usr/local/bin/semcache-rs
+COPY --from=builder /app/target/release/semcache /usr/local/bin/semcache
 COPY ./assets ./app/assets
 COPY ./config.yaml ./app/config.yaml
 
@@ -34,4 +34,4 @@ ENV LD_LIBRARY_PATH="/usr/local/lib"
 WORKDIR /app
 
 # Start the app
-ENTRYPOINT ["/usr/local/bin/semcache-rs"]
+ENTRYPOINT ["/usr/local/bin/semcache"]

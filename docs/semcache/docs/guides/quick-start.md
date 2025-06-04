@@ -16,7 +16,7 @@ docker run -p 8080:8080 ghcr.io/sensoris/semcache:latest
 ### Using Local Build
 ```bash
 # If you've built from source
-./target/release/semcache-rs
+./target/release/semcache
 ```
 
 semcache will start on `http://localhost:8080`.
