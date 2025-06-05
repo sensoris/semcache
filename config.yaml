@@ -1,3 +1,4 @@
 log_level: info  # Possible values: debug, info, warning, error, critical
 similarity_threshold: 0.90  # Float value between 0 and 1
 port: 8080
+max_cache_entries: 1000

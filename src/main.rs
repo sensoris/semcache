@@ -8,6 +8,7 @@ mod metrics;
 mod providers;
 mod utils;
 
+use crate::config::get_max_cache_entries;
 use crate::endpoints::chat::provider_handlers::{
     anthropic_handler, generic_handler, openai_handler,
 };
@@ -45,6 +46,10 @@ async fn main() {
 
     let shared_state = Arc::new(AppState::new(
         get_similarity_threshold(&config).unwrap_or(0.90) as f32,
+        get_max_cache_entries(&config)
+            .unwrap_or(10000)
+            .try_into()
+            .unwrap(),
     ));
 
     let provider_routes = Router::new()
