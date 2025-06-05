@@ -46,10 +46,15 @@ async fn main() {
 
     let shared_state = Arc::new(AppState::new(
         get_similarity_threshold(&config).unwrap_or(0.90) as f32,
-        get_max_cache_entries(&config)
+        match get_max_cache_entries(&config)
             .unwrap_or(10000)
-            .try_into()
-            .unwrap(),
+            .try_into() {
+            Ok(max_entries) => max_entries,
+            Err(err) => {
+                error!(error = ?err, "Invalid max cache entries value, using fallback");
+                10000 // Fallback value
+            }
+        },
     ));
 
     let provider_routes = Router::new()
