@@ -53,7 +53,7 @@ pub async fn completions(
             .cache
             .put(embedding, upstream_response.response_body.clone())?;
     }
-    
+
     let mut response = (
         upstream_response.status_code,
         upstream_response.header_map,
