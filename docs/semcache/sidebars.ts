@@ -16,22 +16,7 @@ const sidebars: SidebarsConfig = {
   tutorialSidebar: [
     'intro',
     'getting-started',
-    {
-      type: 'category',
-      label: 'Installation & Deployment',
-      items: [
-        'installation/docker',
-      ],
-    },
-    {
-      type: 'category',
-      label: 'API Reference',
-      items: [
-        'api/chat-completions',
-        'api/headers',
-        'api/supported-providers',
-      ],
-    },
+    'llm-providers-tools',
     {
       type: 'category',
       label: 'Configuration',

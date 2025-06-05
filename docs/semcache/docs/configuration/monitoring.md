@@ -4,11 +4,11 @@ sidebar_position: 3
 
 # Monitoring Configuration
 
-Set up monitoring and observability for your semcache deployment.
+Set up monitoring and observability for your Semcache deployment.
 
 ## Built-in Monitoring
 
-semcache includes several monitoring capabilities out of the box.
+Semcache includes several monitoring capabilities out of the box.
 
 ### Admin Dashboard
 
@@ -125,7 +125,7 @@ rate(semcache_memory_usage_bytes[1h])
 ```json
 {
   "dashboard": {
-    "title": "semcache Monitoring",
+    "title": "Semcache Monitoring",
     "panels": [
       {
         "title": "Cache Hit Rate",

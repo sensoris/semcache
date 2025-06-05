@@ -33,7 +33,6 @@ pub async fn completions(
         let mut response_headers = HeaderMap::new();
         response_headers.insert("X-Cache-Status", "hit".parse().unwrap());
         response_headers.insert("content-type", "application/json".parse().unwrap());
-
         let mut response = (StatusCode::OK, response_headers, saved_response).into_response();
 
         debug!("Cache hit - returning cached response");
@@ -54,7 +53,7 @@ pub async fn completions(
             .cache
             .put(embedding, upstream_response.response_body.clone())?;
     }
-
+    
     let mut response = (
         upstream_response.status_code,
         upstream_response.header_map,

@@ -4,39 +4,48 @@ sidebar_position: 1
 
 # Introduction to Semcache
 
-**Semcache** is a semantic caching proxy for LLM API requests that intelligently caches responses based on semantic similarity.
-
-## What is Semantic Caching?
+**Semcache** is a semantic caching service for LLM APIs that intelligently caches responses based on semantic similarity.
 
 Traditional caching systems only match exact requests. Semcache uses vector embeddings to understand the meaning behind prompts, allowing it to serve cached responses for semantically similar queries even when the wording differs.
 
-For example, these prompts would be considered similar:
+For example, these prompts would be considered semantically similar:
 - "What is the capital of France?"
 - "Tell me the capital city of France"
 - "France's capital city is?"
 
 ## Key Benefits
 
-- **Cost Reduction**: Avoid redundant API calls to expensive LLM providers
+- **Token Usage Reduction**: Avoid redundant API calls to expensive LLM providers
 - **Performance**: Instant responses for semantically similar queries
-- **Intelligent Matching**: Uses vector similarity (90% threshold by default)
-- **Multi-Provider Support**: Works with OpenAI, DeepSeek, and Anthropic APIs
+- **Intelligent Matching**: Uses vector similarity to match prompts
+- **Multi-Provider Support**: Works with major providers like OpenAI, Anthropic, Deepseek etc.
 - **Drop-in Replacement**: Minimal changes to existing LLM integration code
 
 ## How It Works
 
-1. **Request Interception**: semcache sits between your application and LLM providers
-2. **Embedding Generation**: Converts prompts to 384-dimensional vectors using FastEmbed
-3. **Similarity Search**: Uses FAISS to find cached responses above similarity threshold
-4. **Smart Caching**: Returns cached response or forwards to upstream and caches new responses
+Semcache implements semantic caching through a multi-stage pipeline that processes LLM requests and matches them against previously cached responses using vector similarity.
 
-## Architecture
+### 1. Request Processing
+Semcache intercepts HTTP requests to LLM providers and extracts the prompt content from the request payload. The prompt location is configurable via JSONPath (e.g., `$.messages[-1].content` for OpenAI format).
 
-```
-Client → semcache → LLM Provider (OpenAI/DeepSeek/Anthropic)
-         ↓
-    Vector Cache (FAISS)
-```
+### 2. Semantic Processing  
+To compare prompt similarity, Semcache computes vector embeddings using distilled models from the [model2vec library](https://github.com/MinishLab/model2vec). These models:
+- Generate compact vector representations by computing word embeddings for each word in a sentence
+- Take the mean of word vectors as the sentence-level representation
+- Are optimized for low memory usage, enabling efficient in-memory processing
+
+### 3. Vector Database Search
+Semcache uses [FAISS](https://github.com/facebookresearch/faiss) (Facebook AI Similarity Search) as the in-memory vector database to:
+- Store vector representations of previously seen prompts
+- Perform fast similarity searches against the existing vector index
+- Scale efficiently as the cache grows
+
+### 4. Similarity Matching
+The system calculates cosine similarity between the incoming prompt vector and stored vectors. If the closest match exceeds the configured similarity threshold, it's considered a cache hit.
+
+### 5. Response Handling
+- **Cache Hit**: Returns the stored response immediately with an `X-Cache-Status: hit` header
+- **Cache Miss**: Forwards the request to the upstream LLM provider, caches the response with its vector representation, and returns the response to the client
 
 ## Use Cases
 
