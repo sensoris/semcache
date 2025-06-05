@@ -1,6 +1,6 @@
 # LLM Providers & Tools
 
-Semcache acts as an HTTP proxy for LLM APIs, providing semantic caching while maintaining compatibility with existing SDKs and tools. This guide shows you how to route requests through Semcache to various LLM providers.
+Semcache as an HTTP proxy supports different LLM providers and tools. It also can be configured to work with your own custom APIs.
 
 ## Three Ways to Configure Providers
 
