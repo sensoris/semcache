@@ -16,7 +16,8 @@ use crate::metrics::metrics::{init_metrics, track_metrics};
 use crate::providers::OPEN_AI_REST_PATH;
 use app_state::AppState;
 use axum::http::StatusCode;
-use axum::{Router, routing::get, routing::post};
+use axum::routing;
+use axum::{Router, routing::post};
 use config::{get_log_level, get_port, get_similarity_threshold};
 use providers::ProviderType;
 use std::sync::Arc;
@@ -47,27 +48,39 @@ async fn main() {
         get_similarity_threshold(&config).unwrap_or(0.90) as f32,
     ));
 
-    let provider_routes = Router::new()
-        // Provider endpoints
+    // read through cache (proxy) routes
+    let read_through_routes = Router::new()
         .route(ProviderType::OpenAI.path(), post(openai_handler))
         .route(OPEN_AI_REST_PATH, post(openai_handler))
         .route(ProviderType::Anthropic.path(), post(anthropic_handler))
         .route(ProviderType::Generic.path(), post(generic_handler))
         .layer(axum::middleware::from_fn(track_metrics)); // Apply middleware only to these routes
 
+    // cache aside endpoints
+    let cache_aside_routes = Router::new()
+        .route(
+            "/semcache/v1/get",
+            routing::post(endpoints::cache_aside::handler::get),
+        )
+        .route(
+            "/semcache/v1/put",
+            routing::put(endpoints::cache_aside::handler::put),
+        );
+
     let app = Router::new()
         // healthcheck
-        .route("/", get(|| async { StatusCode::OK }))
+        .route("/", routing::get(|| async { StatusCode::OK }))
         // Provider endpoints
-        .merge(provider_routes)
+        .merge(read_through_routes)
+        .merge(cache_aside_routes)
         // Prometheus metrics
-        .route("/metrics", get(prometheus_metrics_handler))
+        .route("/metrics", routing::get(prometheus_metrics_handler))
         // Admin dashboard
-        .route("/admin", get(endpoints::admin::handler::dashboard))
+        .route("/admin", routing::get(endpoints::admin::handler::dashboard))
         // Dashboard metrics
         .route(
             "/dashboard-metrics",
-            get(endpoints::metrics::handler::dashboard_metrics_handler),
+            routing::get(endpoints::metrics::handler::dashboard_metrics_handler),
         )
         .nest_service("/static", ServeDir::new("assets"))
         .with_state(shared_state);
