@@ -26,8 +26,8 @@ use tower_http::services::ServeDir;
 use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
 
-const CONFIG_FILE: &'static str = "config.yaml";
-const STARTUP_MESSAGE: &'static str = "Semcache started successfully";
+const CONFIG_FILE: &str = "config.yaml";
+const STARTUP_MESSAGE: &str = "Semcache started successfully";
 
 #[tokio::main]
 async fn main() {
