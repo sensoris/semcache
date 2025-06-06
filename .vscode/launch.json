@@ -11,11 +11,11 @@
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=semcache-rs",
-                    "--package=semcache-rs"
+                    "--bin=semcache",
+                    "--package=semcache"
                 ],
                 "filter": {
-                    "name": "semcache-rs",
+                    "name": "semcache",
                     "kind": "bin"
                 }
             },
@@ -25,16 +25,16 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'semcache-rs'",
+            "name": "Debug unit tests in executable 'semcache'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=semcache-rs",
-                    "--package=semcache-rs"
+                    "--bin=semcache",
+                    "--package=semcache"
                 ],
                 "filter": {
-                    "name": "semcache-rs",
+                    "name": "semcache",
                     "kind": "bin"
                 }
             },
@@ -49,7 +49,7 @@
                 "args": [
                     "build",
                     "--bin=smoke_test",
-                    "--package=semcache-rs"
+                    "--package=semcache"
                 ],
                 "filter": {
                     "name": "smoke_test",
@@ -68,7 +68,7 @@
                     "test",
                     "--no-run",
                     "--bin=smoke_test",
-                    "--package=semcache-rs"
+                    "--package=semcache"
                 ],
                 "filter": {
                     "name": "smoke_test",
