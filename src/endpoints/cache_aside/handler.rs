@@ -1,4 +1,7 @@
-use axum::response::{IntoResponse, Response};
+use axum::{
+    http::HeaderValue,
+    response::{IntoResponse, Response},
+};
 use std::sync::Arc;
 
 use axum::{Json, extract::State, http::HeaderMap};
@@ -6,14 +9,19 @@ use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::{app_state::AppState, embedding::error::EmbeddingError};
+use crate::{app_state::AppState, cache::error::CacheError, embedding::error::EmbeddingError};
 
 #[derive(Debug, Error)]
 pub enum CacheAsideError {
-    #[error("Upstream request failed: {0}")]
-    InternalEmbeddingError(#[from] EmbeddingError),
+    #[error("Failed to generate embedding: {0}")]
+    InternalEmbedding(#[from] EmbeddingError),
+    #[error("Error in caching layer: {0}")]
+    InternalCache(#[from] CacheError),
+    #[error("Invalid input: {0}")]
+    InputValidation(String),
 }
 
+// TODO: handle the error cases
 impl IntoResponse for CacheAsideError {
     fn into_response(self) -> Response {
         (StatusCode::INTERNAL_SERVER_ERROR).into_response()
@@ -25,8 +33,6 @@ pub struct GetRequest {
     pub query: String,
 }
 
-pub struct GetResponse {}
-
 #[derive(Deserialize, Serialize, Debug)]
 pub struct PutRequest {
     pub query: String,
@@ -36,9 +42,20 @@ pub struct PutRequest {
 pub async fn get(
     State(state): State<Arc<AppState>>,
     headers: HeaderMap,
-    Json(request_body): Json<GetRequest>,
+    Json(request): Json<GetRequest>,
 ) -> Result<Response, CacheAsideError> {
-    unimplemented!("unimplemented")
+    if headers.get("Accept") != Some(&HeaderValue::from_static("application/json")) {
+        return Err(CacheAsideError::InputValidation(String::from(
+            "The cache aside endpoint only supports application/json at this stage",
+        )));
+    }
+    let embedding = state.embedding_service.embed(&request.query)?;
+    let saved_response = state.cache.get_if_present(&embedding)?;
+    let http_response = match saved_response {
+        Some(response_bytes) => (StatusCode::OK, response_bytes).into_response(),
+        None => (StatusCode::NOT_FOUND).into_response(),
+    };
+    Ok(http_response)
 }
 
 pub async fn put(
@@ -46,6 +63,6 @@ pub async fn put(
     headers: HeaderMap,
     Json(request_body): Json<PutRequest>,
 ) -> Result<Response, CacheAsideError> {
+    // TODO: update cache::put to override in case of exact match
     unimplemented!("unimplemented")
 }
-
