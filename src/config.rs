@@ -50,7 +50,7 @@ pub fn get_eviction_policy(conf: &Config) -> Result<EvictionPolicy, ConfigError>
 
     match policy.policy_type.as_str() {
         "entry_limit" => Ok(EvictionPolicy::EntryLimit(policy.value)),
-        "memory_limit_bytes" => Ok(EvictionPolicy::MemoryLimitMb(policy.value)),
+        "memory_limit_mb" => Ok(EvictionPolicy::MemoryLimitMb(policy.value)),
         other => {
             warn!(ty = other, "Unknown eviction policy type");
             Err(ConfigError::Message(format!(
