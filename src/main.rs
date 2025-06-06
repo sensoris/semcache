@@ -8,7 +8,7 @@ mod metrics;
 mod providers;
 mod utils;
 
-use crate::config::get_max_cache_entries;
+use crate::config::get_eviction_policy;
 use crate::endpoints::chat::provider_handlers::{
     anthropic_handler, generic_handler, openai_handler,
 };
@@ -44,16 +44,13 @@ async fn main() {
     // metrics setup
     init_metrics();
 
-    let shared_state = Arc::new(AppState::new(
-        get_similarity_threshold(&config).unwrap_or(0.90) as f32,
-        match get_max_cache_entries(&config).unwrap_or(10000).try_into() {
-            Ok(max_entries) => max_entries,
-            Err(err) => {
-                error!(error = ?err, "Invalid max cache entries value, using fallback");
-                10000 // Fallback value
-            }
-        },
-    ));
+    let similarity_threshold = get_similarity_threshold(&config).unwrap_or(0.90) as f32;
+    let eviction_policy = get_eviction_policy(&config).unwrap_or_else(|err| {
+        error!(?err, "Missing or malformed eviction policy from conf");
+        panic!("Missing or malformed eviction policy in config")
+    });
+
+    let shared_state = Arc::new(AppState::new(similarity_threshold, eviction_policy));
 
     let provider_routes = Router::new()
         // Provider endpoints
