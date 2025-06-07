@@ -1,3 +1,6 @@
 log_level: info  # Possible values: debug, info, warning, error, critical
 similarity_threshold: 0.90  # Float value between 0 and 1
 port: 8080
+eviction_policy:
+  policy_type: memory_limit_mb # or entry_limit
+  value: 4096

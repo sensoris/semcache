@@ -10,7 +10,7 @@ use tracing::info;
 pub enum EvictionPolicy {
     EntryLimit(usize),
     #[allow(dead_code)]
-    MemoryLimitBytes(usize), // Could also implement a "combined" of both limits
+    MemoryLimitMb(usize), // Could also implement a "combined" of both limits
 }
 
 const TOP_K: usize = 1;
@@ -51,10 +51,15 @@ where
     fn is_full(&self) -> bool {
         match &self.eviction_policy {
             EvictionPolicy::EntryLimit(limit) => self.response_store.len() >= *limit,
-            EvictionPolicy::MemoryLimitBytes(limit) => {
-                let total_memory = self.response_store.memory_usage_bytes()
-                    + self.semantic_store.memory_usage_bytes();
-                total_memory >= *limit
+            EvictionPolicy::MemoryLimitMb(limit) => {
+                let response_store_memory_used_mb =
+                    self.response_store.memory_usage_bytes() as f64 / 1024.0;
+                let semantic_store_memory_used_mb =
+                    self.semantic_store.memory_usage_bytes() as f64 / 1024.0;
+                let total_memory_used_mb =
+                    response_store_memory_used_mb + semantic_store_memory_used_mb;
+                let limit_mb = *limit as f64;
+                total_memory_used_mb >= limit_mb
             }
         }
     }
@@ -277,14 +282,16 @@ mod tests {
     #[test]
     fn put_should_evict_when_memory_limit_reached() {
         let embedding = vec![0.1, 0.2, 0.3];
-        let response = "A".repeat(100).into_bytes();
+        let response = "A".repeat(100 * 1024).into_bytes();
 
         // given
         let mut mock_store = MockSemanticStore::new();
 
         mock_store.expect_put().times(3).returning(|_, _| Ok(()));
         mock_store.expect_delete().times(2).returning(|_| Ok(()));
-        mock_store.expect_memory_usage_bytes().returning(|| 50);
+        mock_store
+            .expect_memory_usage_bytes()
+            .returning(|| 100 * 1024);
 
         let response_store = ResponseStore::new();
 
@@ -292,14 +299,15 @@ mod tests {
             Box::new(mock_store),
             response_store,
             0.9,
-            EvictionPolicy::MemoryLimitBytes(300),
+            EvictionPolicy::MemoryLimitMb(300),
         );
 
         // when - add first entry
         cache.put(embedding.clone(), response.clone()).unwrap();
-        assert!(!cache.is_full()); // should have ~150 bytes (100 string + overhead + 50 semantic)
+        assert!(!cache.is_full()); // should have ~200 megabytes (100 string + overhead + 100 semantic)
 
-        // when - add second entry, this triggers eviction because memory exceeds limit of 300
+        // when - add second entry, this triggers eviction because memory exceeds limit of 300 (200
+        // string + overhead (2 * 32 bytes) + 100 semantic)
         cache.put(embedding.clone(), response.clone()).unwrap();
         assert_eq!(cache.response_store.len(), 1); // evicted back to 1
         assert!(!cache.is_full());
