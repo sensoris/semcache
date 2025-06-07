@@ -3,6 +3,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use std::sync::Arc;
+use tracing::error;
 
 use axum::{Json, extract::State, http::HeaderMap};
 use reqwest::StatusCode;
@@ -21,10 +22,21 @@ pub enum CacheAsideError {
     InputValidation(String),
 }
 
-// TODO: handle the error cases
 impl IntoResponse for CacheAsideError {
     fn into_response(self) -> Response {
-        (StatusCode::INTERNAL_SERVER_ERROR).into_response()
+        match self {
+            Self::InternalEmbedding(err) => {
+                error!(?err, "returning internal error to user");
+                (StatusCode::INTERNAL_SERVER_ERROR, "Something went wrong").into_response()
+            }
+            Self::InternalCache(err) => {
+                error!(?err, "returning internal error to user");
+                (StatusCode::INTERNAL_SERVER_ERROR, "Something went wrong").into_response()
+            }
+            Self::InputValidation(err) => {
+                (StatusCode::BAD_REQUEST, err.to_string()).into_response()
+            }
+        }
     }
 }
 
