@@ -53,11 +53,8 @@ pub struct PutRequest {
 
 pub async fn get(
     State(state): State<Arc<AppState>>,
-    headers: HeaderMap,
     Json(request): Json<GetRequest>,
 ) -> Result<Response, CacheAsideError> {
-    validate_headers(&headers)?;
-
     let embedding = state.embedding_service.embed(&request.query)?;
     let saved_response = state.cache.get_if_present(&embedding)?;
     let http_response = match saved_response {
@@ -69,11 +66,8 @@ pub async fn get(
 
 pub async fn put(
     State(state): State<Arc<AppState>>,
-    headers: HeaderMap,
     Json(request): Json<PutRequest>,
 ) -> Result<Response, CacheAsideError> {
-    validate_headers(&headers)?;
-
     let body: Vec<u8> = request.body.into_bytes();
     let embedding = state.embedding_service.embed(&request.query)?;
     // if we already have an entry associated with the prompt, update it
@@ -82,13 +76,4 @@ pub async fn put(
         state.cache.insert(embedding, body)?;
     }
     Ok((StatusCode::OK).into_response())
-}
-
-fn validate_headers(headers: &HeaderMap) -> Result<(), CacheAsideError> {
-    if headers.get("Accept") != Some(&HeaderValue::from_static("application/json")) {
-        return Err(CacheAsideError::InputValidation(String::from(
-            "The cache aside endpoint only supports application/json at this stage",
-        )));
-    }
-    Ok(())
 }
