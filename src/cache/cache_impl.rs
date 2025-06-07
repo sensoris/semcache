@@ -9,7 +9,6 @@ use tracing::info;
 #[derive(Debug, Clone)]
 pub enum EvictionPolicy {
     EntryLimit(usize),
-    #[allow(dead_code)]
     MemoryLimitMb(usize), // Could also implement a "combined" of both limits
 }
 
@@ -34,7 +33,7 @@ where
         eviction_policy: EvictionPolicy,
     ) -> Self {
         assert!(
-            similarity_threshold >= 0.0 && similarity_threshold <= 1.0,
+            (0.0..=1.0).contains(&similarity_threshold),
             "similarity_threshold must be between 0.0 and 1.0"
         );
 
@@ -69,11 +68,11 @@ impl<T> Cache<T> for CacheImpl<T>
 where
     T: Clone + Send + Sync + 'static,
 {
-    fn get_if_present(&self, embedding: &Vec<f32>) -> Result<Option<T>, CacheError> {
+    fn get_if_present(&self, embedding: &[f32]) -> Result<Option<T>, CacheError> {
         // search semantic store for vectors similar to our query vector
-        let search_result =
-            self.semantic_store
-                .get(&embedding, TOP_K, self.similarity_threshold)?;
+        let search_result = self
+            .semantic_store
+            .get(embedding, TOP_K, self.similarity_threshold)?;
 
         // return early if no fitting match found
         if search_result.is_empty() {
@@ -88,11 +87,11 @@ where
         Ok(cached_response)
     }
 
-    fn put(&self, embedding: Vec<f32>, response: T) -> Result<(), CacheError> {
+    fn insert(&self, embedding: Vec<f32>, response: T) -> Result<(), CacheError> {
         let id = self.id_generator.fetch_add(1, Ordering::Relaxed);
 
-        self.response_store.put(id.into(), response);
-        self.semantic_store.put(id.into(), embedding)?;
+        self.response_store.put(id, response);
+        self.semantic_store.put(id, embedding)?;
 
         // Evict entries if policy limits are exceeded
         // TODO (not V0): handle multiple threads attempting to evict simultaneously
@@ -108,6 +107,21 @@ where
         }
 
         Ok(())
+    }
+
+    // checks cache for an exact match, if it finds one it update the response_store of found id
+    // with new body and returns true, otherwise it returns false
+    fn try_update(&self, embedding: &[f32], response: T) -> Result<bool, CacheError> {
+        let maybe_existing_id: Option<u64> =
+        // set similarity_threshold to 0.99 to allow for floating point rounding
+            match self.semantic_store.get(embedding, 1, 0.99)?.as_slice() {
+                [] => return Ok(false),
+                [head, ..] => Some(*head),
+            };
+        if let Some(id) = maybe_existing_id {
+            self.response_store.put(id, response)
+        }
+        Ok(true)
     }
 }
 
@@ -204,7 +218,7 @@ mod tests {
         );
 
         // when
-        let result = cache.put(embedding, response.clone());
+        let result = cache.insert(embedding, response.clone());
 
         // then
         assert!(result.is_ok());
@@ -263,16 +277,16 @@ mod tests {
         );
 
         // when - add first entry
-        cache.put(embedding.clone(), response.clone()).unwrap();
+        cache.insert(embedding.clone(), response.clone()).unwrap();
         assert_eq!(cache.response_store.len(), 1);
         assert!(!cache.is_full());
 
         // when - add second entry, this triggers eviction because after adding we have 2 items (which is >= limit)
-        cache.put(embedding.clone(), response.clone()).unwrap();
+        cache.insert(embedding.clone(), response.clone()).unwrap();
         assert_eq!(cache.response_store.len(), 1); // evicted back to 1
 
         // when - add third entry, again triggers eviction
-        cache.put(embedding.clone(), response.clone()).unwrap();
+        cache.insert(embedding.clone(), response.clone()).unwrap();
         assert_eq!(cache.response_store.len(), 1); // still 1
 
         // verify is_full returns false now since we have 1 item and limit is 2
@@ -303,17 +317,17 @@ mod tests {
         );
 
         // when - add first entry
-        cache.put(embedding.clone(), response.clone()).unwrap();
+        cache.insert(embedding.clone(), response.clone()).unwrap();
         assert!(!cache.is_full()); // should have ~200 megabytes (100 string + overhead + 100 semantic)
 
         // when - add second entry, this triggers eviction because memory exceeds limit of 300 (200
         // string + overhead (2 * 32 bytes) + 100 semantic)
-        cache.put(embedding.clone(), response.clone()).unwrap();
+        cache.insert(embedding.clone(), response.clone()).unwrap();
         assert_eq!(cache.response_store.len(), 1); // evicted back to 1
         assert!(!cache.is_full());
 
         // when - add third entry, again triggers eviction
-        cache.put(embedding.clone(), response.clone()).unwrap();
+        cache.insert(embedding.clone(), response.clone()).unwrap();
         assert_eq!(cache.response_store.len(), 1); // still 1
 
         // verify cache is not full after eviction

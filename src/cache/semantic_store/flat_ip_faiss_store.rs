@@ -18,7 +18,7 @@ pub struct FlatIPFaissStore {
     dimensionality: u32,
 }
 
-const RW_LOCK_ERROR: &'static str = "RwLock poisoned, faiss store might be corrupted, panicking";
+const RW_LOCK_ERROR: &str = "RwLock poisoned, faiss store might be corrupted, panicking";
 
 impl FlatIPFaissStore {
     pub fn new(dimensionality: u32) -> Self {
@@ -41,12 +41,12 @@ impl FlatIPFaissStore {
 impl SemanticStore for FlatIPFaissStore {
     fn get(
         &self,
-        vec: &Vec<f32>,
+        vec: &[f32],
         top_k: usize,
         similarity_threshold: f32,
     ) -> Result<Vec<u64>, CacheError> {
         let similarity_threshold = into_cosine_similarity(similarity_threshold);
-        let vec = normalize(&vec);
+        let vec = normalize(vec);
 
         let read_guard = self.faiss_store.read().expect(RW_LOCK_ERROR);
 
@@ -62,14 +62,14 @@ impl SemanticStore for FlatIPFaissStore {
 
     fn put(&self, id: u64, vec: Vec<f32>) -> Result<(), CacheError> {
         let vec = normalize(&vec);
-        let id = Idx::new(id.into());
+        let id = Idx::new(id);
         let mut write_guard = self.faiss_store.write().expect(RW_LOCK_ERROR);
-        write_guard.add_with_ids(&vec, &vec![id])?;
+        write_guard.add_with_ids(&vec, &[id])?;
         Ok(())
     }
 
     fn delete(&self, id: u64) -> Result<(), CacheError> {
-        let id = Idx::new(id.into());
+        let id = Idx::new(id);
         let mut write_guard = self
             .faiss_store
             .write()
@@ -103,14 +103,11 @@ fn find_nearest_ids(search_result: SearchResult, similarity_threshold: f32) -> V
         .distances
         .into_iter()
         // zip the distances and labels together so we can process each vector cohesively
-        .zip(search_result.labels.into_iter())
+        .zip(search_result.labels)
         // filter out NaN distances
         .filter(|(distance, _)| distance.is_finite())
         // filter out invalid id's
-        .filter_map(|(distance, idx)| match idx.get() {
-            Some(id) => Some((distance, id)),
-            None => None,
-        })
+        .filter_map(|(distance, idx)| idx.get().map(|id| (distance, id)))
         // filter out matches that don't meet threshold
         .filter(|(distance, _)| distance >= &similarity_threshold)
         .collect();
