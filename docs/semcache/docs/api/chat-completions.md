@@ -14,7 +14,7 @@ POST /chat/completions
 
 ## Request Format
 
-semcache accepts the same request format as the OpenAI Chat Completions API:
+Semcache accepts the same request format as the OpenAI Chat Completions API:
 
 ```json
 {
