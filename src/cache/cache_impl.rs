@@ -13,6 +13,7 @@ pub enum EvictionPolicy {
 }
 
 const TOP_K: usize = 1;
+const EXACT_MATCH_SIMILARITY: f32 = 0.99;
 
 pub struct CacheImpl<T> {
     similarity_threshold: f32,
@@ -109,12 +110,12 @@ where
         Ok(())
     }
 
-    // checks cache for an exact match, if it finds one it update the response_store of found id
+    // checks cache for an exact match, if it finds one it updates the response_store of found id
     // with new body and returns true, otherwise it returns false
     fn try_update(&self, embedding: &[f32], response: T) -> Result<bool, CacheError> {
         let maybe_existing_id: Option<u64> =
         // set similarity_threshold to 0.99 to allow for floating point rounding
-            match self.semantic_store.get(embedding, 1, 0.99)?.as_slice() {
+            match self.semantic_store.get(embedding, 1, EXACT_MATCH_SIMILARITY)?.as_slice() {
                 [] => return Ok(false),
                 [head, ..] => Some(*head),
             };
@@ -131,13 +132,15 @@ mod tests {
     use mockall::predicate::eq;
 
     use crate::cache::cache::Cache;
-    use crate::cache::cache_impl::EvictionPolicy;
+    use crate::cache::cache_impl::{EXACT_MATCH_SIMILARITY, EvictionPolicy};
     use crate::cache::response_store::ResponseStore;
     use crate::cache::{
         cache_impl::{CacheImpl, TOP_K},
         error::CacheError,
         semantic_store::semantic_store::MockSemanticStore,
     };
+
+    // GET
 
     #[test]
     fn get_should_return_first_entry_when_multiple_found() {
@@ -196,38 +199,6 @@ mod tests {
     }
 
     #[test]
-    fn put_should_update_semantic_store_and_insert() {
-        let embedding = vec![0.1, 0.2, 0.3];
-        let response = String::from("stored response");
-
-        // given
-
-        let mut mock_store = MockSemanticStore::new();
-        mock_store
-            .expect_put()
-            .with(eq(0u64), eq(embedding.clone()))
-            .return_once(|_, _| Ok(()));
-
-        let response_store = ResponseStore::new();
-
-        let cache = CacheImpl::new(
-            Box::new(mock_store),
-            response_store,
-            0.9,
-            EvictionPolicy::EntryLimit(100),
-        );
-
-        // when
-        let result = cache.insert(embedding, response.clone());
-
-        // then
-        assert!(result.is_ok());
-
-        let stored = cache.response_store.get(*&0).unwrap();
-        assert_eq!(stored.as_str(), response);
-    }
-
-    #[test]
     fn get_should_return_error_on_semantic_store_failure() {
         let embedding = vec![0.1, 0.2, 0.3];
 
@@ -257,8 +228,42 @@ mod tests {
         }
     }
 
+    // INSERT
+
     #[test]
-    fn put_should_evict_when_entry_limit_reached() {
+    fn insert_should_update_semantic_store_and_insert() {
+        let embedding = vec![0.1, 0.2, 0.3];
+        let response = String::from("stored response");
+
+        // given
+
+        let mut mock_store = MockSemanticStore::new();
+        mock_store
+            .expect_put()
+            .with(eq(0u64), eq(embedding.clone()))
+            .return_once(|_, _| Ok(()));
+
+        let response_store = ResponseStore::new();
+
+        let cache = CacheImpl::new(
+            Box::new(mock_store),
+            response_store,
+            0.9,
+            EvictionPolicy::EntryLimit(100),
+        );
+
+        // when
+        let result = cache.insert(embedding, response.clone());
+
+        // then
+        assert!(result.is_ok());
+
+        let stored = cache.response_store.get(0).unwrap();
+        assert_eq!(stored.as_str(), response);
+    }
+
+    #[test]
+    fn insert_should_evict_when_entry_limit_reached() {
         let embedding = vec![0.1_f32, 0.2, 0.3];
         let response = String::from("test response");
 
@@ -294,7 +299,7 @@ mod tests {
     }
 
     #[test]
-    fn put_should_evict_when_memory_limit_reached() {
+    fn insert_should_evict_when_memory_limit_reached() {
         let embedding = vec![0.1, 0.2, 0.3];
         let response = "A".repeat(100 * 1024).into_bytes();
 
@@ -332,5 +337,72 @@ mod tests {
 
         // verify cache is not full after eviction
         assert!(!cache.is_full());
+    }
+
+    // TRY_UPDATE
+
+    #[test]
+    fn try_update_should_update_response_store_with_id_when_present() {
+        let embedding = vec![0.1, 0.2, 0.3];
+        let response = String::from("new_response");
+        let existing_id = 0;
+
+        // given
+        let mut mock_store = MockSemanticStore::new();
+        mock_store
+            .expect_get()
+            .with(eq(embedding.clone()), eq(1), eq(EXACT_MATCH_SIMILARITY))
+            .return_once(move |_, _, _| Ok(vec![existing_id]));
+
+        let response_store = ResponseStore::new();
+        response_store.put(existing_id, String::from("old_response"));
+
+        let cache = CacheImpl::new(
+            Box::new(mock_store),
+            response_store,
+            0.9,
+            EvictionPolicy::EntryLimit(100),
+        );
+
+        // when
+        let result = cache.try_update(&embedding, response.clone()).unwrap();
+
+        // then
+        assert!(result);
+
+        let stored = cache.response_store.get(existing_id).unwrap();
+        assert_eq!(stored.as_str(), response);
+    }
+
+    #[test]
+    fn try_update_should_return_false_when_not_present() {
+        let embedding = vec![0.1, 0.2, 0.3];
+        let new_response = String::from("new_response");
+        let existing_id = 0;
+
+        // given
+        let mut mock_store = MockSemanticStore::new();
+        mock_store
+            .expect_get()
+            .with(eq(embedding.clone()), eq(1), eq(EXACT_MATCH_SIMILARITY))
+            .return_once(move |_, _, _| Ok(vec![]));
+
+        let response_store = ResponseStore::new();
+
+        let cache = CacheImpl::new(
+            Box::new(mock_store),
+            response_store,
+            0.9,
+            EvictionPolicy::EntryLimit(100),
+        );
+
+        // when
+        let result = cache.try_update(&embedding, new_response.clone()).unwrap();
+
+        // then
+        assert!(!result);
+
+        let stored = cache.response_store.get(existing_id);
+        assert_eq!(stored, None);
     }
 }
