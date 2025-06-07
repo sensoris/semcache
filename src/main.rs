@@ -8,6 +8,7 @@ mod metrics;
 mod providers;
 mod utils;
 
+use crate::config::get_eviction_policy;
 use crate::endpoints::chat::provider_handlers::{
     anthropic_handler, generic_handler, openai_handler,
 };
@@ -26,8 +27,8 @@ use tower_http::services::ServeDir;
 use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
 
-const CONFIG_FILE: &'static str = "config.yaml";
-const STARTUP_MESSAGE: &'static str = "Semcache started successfully";
+const CONFIG_FILE: &str = "config.yaml";
+const STARTUP_MESSAGE: &str = "Semcache started successfully";
 
 #[tokio::main]
 async fn main() {
@@ -44,9 +45,13 @@ async fn main() {
     // metrics setup
     init_metrics();
 
-    let shared_state = Arc::new(AppState::new(
-        get_similarity_threshold(&config).unwrap_or(0.90) as f32,
-    ));
+    let similarity_threshold = get_similarity_threshold(&config).unwrap_or(0.90) as f32;
+    let eviction_policy = get_eviction_policy(&config).unwrap_or_else(|err| {
+        error!(?err, "Missing or malformed eviction policy from conf");
+        panic!("Missing or malformed eviction policy in config")
+    });
+
+    let shared_state = Arc::new(AppState::new(similarity_threshold, eviction_policy));
 
     // read through cache (proxy) routes
     let read_through_routes = Router::new()

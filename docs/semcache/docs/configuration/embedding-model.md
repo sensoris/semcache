@@ -4,11 +4,11 @@ sidebar_position: 2
 
 # Embedding Model Configuration
 
-Understanding and configuring the embedding model that powers semcache's semantic similarity matching.
+Understanding and configuring the embedding model that powers Semcache's semantic similarity matching.
 
 ## Current Embedding Model
 
-semcache uses **FastEmbed** with the AllMiniLML6V2 model for generating embeddings.
+Semcache uses **FastEmbed** with the AllMiniLML6V2 model for generating embeddings.
 
 ### Model Specifications
 

@@ -2,100 +2,265 @@
 sidebar_position: 2
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Getting Started
 
-Get semcache up and running in minutes with Docker or build from source.
+Get Semcache up and running as an HTTP proxy in a few minutes.
 
-## Quick Start with Docker
+## Quick Start
 
-The fastest way to try semcache is with Docker:
+Pull and run the Semcache Docker image:
 
 ```bash
-# Pull and run semcache
 docker run -p 8080:8080 ghcr.io/sensoris/semcache:latest
 ```
 
-semcache will start on `http://localhost:8080`. 
+Semcache will start on `http://localhost:8080` and is ready to proxy LLM requests.
 
-## Your First Request
+## Setting Up The Client
 
-Once semcache is running, you can start caching LLM requests. Here's how to send a request through semcache to OpenAI:
+Semcache acts as a drop-in replacement for LLM APIs. Point your existing SDK to Semcache instead of the provider's endpoint:
 
-```bash
-curl http://localhost:8080/chat/completions \
-  -H "host: api.openai.com" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $OPENAI_API_KEY" \
-  -H "X-LLM-Proxy-Upstream: https://api.openai.com/v1/chat/completions" \
-  -d '{
-    "model": "gpt-4o",
-    "messages": [
-      {
-        "role": "user",
-        "content": "What is the capital of France?"
-      }
-    ]
-  }'
-```
+<Tabs groupId="llm-provider">
+  <TabItem value="openai" label="OpenAI SDK" default>
+    ```python
+    from openai import OpenAI
+    import os
 
-## How It Works
+    # Point to Semcache instead of OpenAI directly
+    client = OpenAI(
+        base_url="http://localhost:8080",  # Semcache endpoint
+        api_key=os.getenv("OPENAI_API_KEY")  # Your OpenAI API key
+    )
 
-When you send this request:
+    # First request - cache miss, forwards to OpenAI
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[{"role": "user", "content": "What is the capital of France?"}]
+    )
+    print(f"Response: {response.choices[0].message.content}")
+    ```
+  </TabItem>
+  <TabItem value="anthropic" label="Anthropic SDK">
+    ```python
+    import anthropic
+    import os
 
-1. **First time**: semcache forwards the request to OpenAI, caches the response, and returns it to you
-2. **Similar requests**: If you ask a semantically similar question like "Tell me France's capital city", semcache returns the cached response instantly
+    # Point to Semcache instead of Anthropic directly
+    client = anthropic.Anthropic(
+        base_url="http://localhost:8080",  # Semcache endpoint
+        api_key=os.getenv("ANTHROPIC_API_KEY")  # Your Anthropic API key
+    )
 
-## Required Headers
+    # First request - cache miss, forwards to Anthropic
+    response = client.messages.create(
+        model="claude-3-sonnet-20240229",
+        max_tokens=100,
+        messages=[{"role": "user", "content": "What is the capital of France?"}]
+    )
+    print(f"Response: {response.content[0].text}")
+    ```
+  </TabItem>
+  <TabItem value="langchain" label="LangChain">
+    ```python
+    from langchain_openai import ChatOpenAI
+    import os
 
-semcache requires these specific headers:
+    # Point to Semcache instead of OpenAI directly
+    llm = ChatOpenAI(
+        model="gpt-4o",
+        openai_api_base="http://localhost:8080",  # Semcache endpoint
+        openai_api_key=os.getenv("OPENAI_API_KEY")  # Your OpenAI API key
+    )
 
-- `Authorization`: Your LLM provider API key (Bearer token)
-- `host`: The target LLM provider hostname (e.g., `api.openai.com`)
-- `X-LLM-Proxy-Upstream`: Full upstream URL for the completion endpoint
+    # First request - cache miss, forwards to OpenAI
+    response = llm.invoke("What is the capital of France?")
+    print(f"Response: {response.content}")
+    ```
+  </TabItem>
+  <TabItem value="litellm" label="LiteLLM">
+    ```python
+    import litellm
+    import os
 
-## Testing the Cache
+    # Point LiteLLM to Semcache
+    litellm.api_base = "http://localhost:8080"  # Semcache endpoint
 
-Try sending a similar but different request:
+    # First request - cache miss, forwards to OpenAI
+    response = litellm.completion(
+        model="gpt-4o",
+        messages=[{"role": "user", "content": "What is the capital of France?"}],
+        api_key=os.getenv("OPENAI_API_KEY")
+    )
+    print(f"Response: {response.choices[0].message.content}")
+    ```
+  </TabItem>
+</Tabs>
 
-```bash
-curl http://localhost:8080/chat/completions \
-  -H "host: api.openai.com" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $OPENAI_API_KEY" \
-  -H "X-LLM-Proxy-Upstream: https://api.openai.com/v1/chat/completions" \
-  -d '{
-    "model": "gpt-4o",
-    "messages": [
-      {
-        "role": "user",
-        "content": "Tell me the capital city of France"
-      }
-    ]
-  }'
-```
+This request will:
+1. Go to Semcache first
+2. Since it's not cached, Semcache forwards it to the upstream provider
+3. The provider responds with the answer
+4. Semcache caches the response and returns it to you
 
-If the similarity is above 90% (default threshold), you'll get the cached response instantly!
+## Testing Semantic Similarity
+
+Now try a semantically similar but differently worded question:
+
+<Tabs groupId="llm-provider">
+  <TabItem value="openai" label="OpenAI SDK" default>
+    ```python
+    # Second request - semantically similar, should be a cache hit
+    response = client.chat.completions.create(
+        model="gpt-4o", 
+        messages=[{"role": "user", "content": "Tell me France's capital city"}]
+    )
+    print(f"Response: {response.choices[0].message.content}")
+    ```
+  </TabItem>
+  <TabItem value="anthropic" label="Anthropic SDK">
+    ```python
+    # Second request - semantically similar, should be a cache hit
+    response = client.messages.create(
+        model="claude-3-sonnet-20240229",
+        max_tokens=100,
+        messages=[{"role": "user", "content": "Tell me France's capital city"}]
+    )
+    print(f"Response: {response.content[0].text}")
+    ```
+  </TabItem>
+  <TabItem value="langchain" label="LangChain">
+    ```python
+    # Second request - semantically similar, should be a cache hit
+    response = llm.invoke("Tell me France's capital city")
+    print(f"Response: {response.content}")
+    ```
+  </TabItem>
+  <TabItem value="litellm" label="LiteLLM">
+    ```python
+    # Second request - semantically similar, should be a cache hit
+    response = litellm.completion(
+        model="gpt-4o",
+        messages=[{"role": "user", "content": "Tell me France's capital city"}],
+        api_key=os.getenv("OPENAI_API_KEY")
+    )
+    print(f"Response: {response.choices[0].message.content}")
+    ```
+  </TabItem>
+</Tabs>
+
+Even though the wording is different, Semcache recognizes the semantic similarity and returns the cached response instantly - no API call to the upstream provider!
+
+## Checking Cache Status
+
+You can verify cache hits by checking the response headers. If there is a cache hit the `X-Cache-Status` header will be set to `hit`:
+
+<Tabs groupId="llm-provider">
+  <TabItem value="openai" label="OpenAI SDK" default>
+    ```python
+    # Use with_raw_response to access headers
+    response = client.chat.completions.with_raw_response.create(
+        model="gpt-4o",
+        messages=[{"role": "user", "content": "What's the capital of France?"}]
+    )
+
+    # Check if it was a cache hit
+    cache_status = response.headers.get("X-Cache-Status")
+    print(f"Cache status: {cache_status}")  # Should show "hit"
+
+    # Access the actual response content
+    completion = response.parse()
+    print(f"Response: {completion.choices[0].message.content}")
+    ```
+  </TabItem>
+  <TabItem value="anthropic" label="Anthropic SDK">
+    ```python
+    import httpx
+
+    # Make request with httpx to access headers
+    with httpx.Client() as client:
+        response = client.post(
+            "http://localhost:8080/v1/messages",
+            headers={
+                "Authorization": f"Bearer {os.getenv('ANTHROPIC_API_KEY')}",
+                "Content-Type": "application/json",
+                "anthropic-version": "2023-06-01"
+            },
+            json={
+                "model": "claude-3-sonnet-20240229",
+                "max_tokens": 100,
+                "messages": [{"role": "user", "content": "What's the capital of France?"}]
+            }
+        )
+        
+        # Check if it was a cache hit
+        cache_status = response.headers.get("X-Cache-Status")
+        print(f"Cache status: {cache_status}")  # Should show "hit"
+        print(f"Response: {response.json()['content'][0]['text']}")
+    ```
+  </TabItem>
+  <TabItem value="langchain" label="LangChain">
+    ```python
+    import requests
+
+    # LangChain doesn't expose headers directly, use requests
+    response = requests.post(
+        "http://localhost:8080/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}",
+            "Content-Type": "application/json"
+        },
+        json={
+            "model": "gpt-4o",
+            "messages": [{"role": "user", "content": "What's the capital of France?"}]
+        }
+    )
+    
+    # Check if it was a cache hit
+    cache_status = response.headers.get("X-Cache-Status")
+    print(f"Cache status: {cache_status}")  # Should show "hit"
+    print(f"Response: {response.json()['choices'][0]['message']['content']}")
+    ```
+  </TabItem>
+  <TabItem value="litellm" label="LiteLLM">
+    ```python
+    import requests
+
+    # LiteLLM doesn't expose headers directly, use requests
+    response = requests.post(
+        "http://localhost:8080/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}",
+            "Content-Type": "application/json"
+        },
+        json={
+            "model": "gpt-4o",
+            "messages": [{"role": "user", "content": "What's the capital of France?"}]
+        }
+    )
+    
+    # Check if it was a cache hit
+    cache_status = response.headers.get("X-Cache-Status")
+    print(f"Cache status: {cache_status}")  # Should show "hit"
+    print(f"Response: {response.json()['choices'][0]['message']['content']}")
+    ```
+  </TabItem>
+</Tabs>
 
 ## Monitor Your Cache
 
-Visit the admin dashboard at `http://localhost:8080/admin` to see:
-- Cache hit/miss statistics
-- Stored embeddings and responses
-- Performance metrics
+Visit the built-in admin dashboard at `http://localhost:8080/admin` to monitor:
 
-## Convenience Script
+- **Cache hit rates** - See how effectively your cache is working
+- **Memory usage** - Track resource consumption
+- **Number of entries** - Monitor cache size and eviction
 
-For easier testing, use the included Python script:
-
-```bash
-# Download the script
-curl -O https://raw.githubusercontent.com/sensoris/semcache/master/scripts/request.py
-
-# Send a request
-python scripts/request.py openai $OPENAI_API_KEY "What is the capital of France?"
-```
+The process is identical across all providers - Semcache automatically detects the provider based on the endpoint path and forwards requests appropriately.
 
 ## Next Steps
 
-- [Docker Installation](./installation/docker.md) - Complete Docker setup guide
-- [API Reference](./api/chat-completions.md) - Full API documentation
+- **[LLM Providers & Tools](./llm-providers-tools.md)** - Configure additional providers like DeepSeek, Mistral, and custom LLMs
+- **[Configuration](./configuration/cache-settings.md)** - Adjust similarity thresholds and cache behavior  
+- **[Monitoring](./monitoring/metrics.md)** - Set up production monitoring with Prometheus and Grafana

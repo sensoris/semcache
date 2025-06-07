@@ -4,11 +4,11 @@ sidebar_position: 1
 
 # Cache Settings
 
-Configure semcache's caching behavior to optimize performance for your workload.
+Configure Semcache's caching behavior to optimize performance for your workload.
 
 ## Current Configuration
 
-semcache currently uses hardcoded configuration values. Future releases will support configuration files and environment variables.
+Semcache currently uses hardcoded configuration values. Future releases will support configuration files and environment variables.
 
 ### Default Settings
 

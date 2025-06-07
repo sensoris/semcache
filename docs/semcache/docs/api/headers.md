@@ -4,7 +4,7 @@ sidebar_position: 2
 
 # Required Headers
 
-semcache uses specific HTTP headers to route requests and authenticate with upstream LLM providers.
+Semcache uses specific HTTP headers to route requests and authenticate with upstream LLM providers.
 
 ## Authentication Header
 
@@ -102,7 +102,7 @@ curl http://localhost:8080/chat/completions \
 
 ## Header Validation
 
-semcache validates all required headers before processing requests:
+Semcache validates all required headers before processing requests:
 
 ### Missing Header Errors
 ```json
@@ -139,7 +139,7 @@ semcache validates all required headers before processing requests:
 ## Security Considerations
 
 ### API Key Handling
-- API keys are **not logged** by semcache
+- API keys are **not logged** by Semcache
 - Keys are passed directly to upstream providers
 - No persistent storage of credentials
 - Use HTTPS in production to protect keys in transit
@@ -191,7 +191,7 @@ You can pass additional headers that will be forwarded to the upstream provider:
 ```
 
 ### Blocked Headers
-Some headers are managed by semcache and cannot be overridden:
+Some headers are managed by Semcache and cannot be overridden:
 - `Host` (managed by semcache)
 - `Content-Length` (calculated automatically)
 - `Connection` (managed by HTTP client)

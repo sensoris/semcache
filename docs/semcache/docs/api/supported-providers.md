@@ -4,7 +4,7 @@ sidebar_position: 3
 
 # Supported LLM Providers
 
-semcache works as a proxy for multiple LLM providers. Here's the current support status and configuration for each.
+Semcache works as a proxy for multiple LLM providers. Here's the current support status and configuration for each.
 
 ## OpenAI ✅
 
@@ -192,7 +192,7 @@ Support for provider-specific authentication methods.
 ## Error Handling
 
 ### Provider-Specific Errors
-semcache forwards upstream errors transparently:
+Semcache forwards upstream errors transparently:
 
 **OpenAI Error**:
 ```json
@@ -224,9 +224,9 @@ semcache forwards upstream errors transparently:
 
 ## Rate Limiting
 
-semcache respects upstream provider rate limits:
+Semcache respects upstream provider rate limits:
 - Forwards rate limit headers from providers
-- No additional rate limiting by semcache
+- No additional rate limiting by Semcache
 - Cache hits don't count against provider limits
 
 ## Adding New Providers
