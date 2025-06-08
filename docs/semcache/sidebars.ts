@@ -1,4 +1,4 @@
-import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
+import type { SidebarsConfig } from '@docusaurus/plugin-content-docs';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
@@ -13,28 +13,28 @@ import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
  Create as many sidebars as you want.
  */
 const sidebars: SidebarsConfig = {
-  tutorialSidebar: [
-    'intro',
-    'getting-started',
-    'llm-providers-tools',
-    {
-      type: 'category',
-      label: 'Configuration',
-      items: [
-        'configuration/cache-settings',
-        'configuration/embedding-model',
-        'configuration/monitoring',
-      ],
-    },
-    {
-      type: 'category',
-      label: 'Monitoring',
-      items: [
-        'monitoring/metrics',
-        'monitoring/admin-dashboard',
-      ],
-    },
-  ],
+	tutorialSidebar: [
+		'intro',
+		'getting-started',
+		'llm-providers-tools',
+		'API',
+		{
+			type: 'category',
+			label: 'Configuration',
+			items: [
+				'configuration/cache-settings',
+				'configuration/embedding-model',
+			],
+		},
+		{
+			type: 'category',
+			label: 'Monitoring',
+			items: [
+				'monitoring/metrics',
+				'monitoring/admin-dashboard',
+			],
+		},
+	],
 };
 
 export default sidebars;
