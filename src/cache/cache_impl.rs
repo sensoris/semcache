@@ -326,7 +326,7 @@ mod tests {
 
         // when - add first entry
         cache.insert(embedding.clone(), response.clone()).unwrap();
-        assert!(!cache.is_full()); // should have ~200 megabytes (100 string + overhead (32 bytes) + 100 semantic)
+        assert!(!cache.is_full()); // should have ~200 megabytes (100 string + overhead + 100 semantic)
 
         // when - add second entry, this triggers eviction because memory exceeds limit of 300 (200
         // string + overhead (2 * 32 bytes) + 100 semantic)
