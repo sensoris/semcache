@@ -106,21 +106,3 @@ eviction_policy:
   policy_type: entry_limit # or memory_limit_mb
   value: 100
 ```
-
-
-## Configuration Validation
-
-### Future Validation Rules
-- Similarity threshold must be 0.0-1.0
-- Entry limits must be positive integers
-- Memory limits must account for system constraints
-- Storage paths must be writable
-
-## Monitoring Configuration Impact
-
-### Admin Dashboard
-Monitor configuration effectiveness at:
-```
-http://localhost:8080/admin
-```
-
