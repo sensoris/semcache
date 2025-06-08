@@ -269,7 +269,3 @@ embedding:
 - A/B testing different models
 - Gradual migration between models
 
-## Next Steps
-
-- [Cache Settings](./cache-settings.md) - Configure caching behavior
-- [Monitoring](./monitoring.md) - Track embedding performance
