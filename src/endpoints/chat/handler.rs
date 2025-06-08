@@ -51,7 +51,7 @@ pub async fn completions(
     if upstream_response.status_code.is_success() {
         state
             .cache
-            .put(embedding, upstream_response.response_body.clone())?;
+            .insert(embedding, upstream_response.response_body.clone())?;
     }
 
     let mut response = (
@@ -224,7 +224,7 @@ mod tests {
 
         // verify put is not called
         mock_cache
-            .expect_put()
+            .expect_insert()
             .times(0)
             .returning(|_, _| unreachable!());
 
@@ -324,7 +324,7 @@ mod tests {
 
         // verify put is called once
         mock_cache
-            .expect_put()
+            .expect_insert()
             .times(1)
             .with(
                 eq(embedding.clone()),
@@ -402,7 +402,7 @@ mod tests {
             .returning(|_| Ok(None));
 
         // verify put is called once
-        mock_cache.expect_put().times(0);
+        mock_cache.expect_insert().times(0);
 
         // upstream response simulation
         let mut mock_client = MockClient::new();

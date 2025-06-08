@@ -16,8 +16,9 @@ use crate::endpoints::metrics::handler::prometheus_metrics_handler;
 use crate::metrics::metrics::{init_metrics, track_metrics};
 use crate::providers::OPEN_AI_REST_PATH;
 use app_state::AppState;
+use axum::Router;
 use axum::http::StatusCode;
-use axum::{Router, routing::get, routing::post};
+use axum::routing::{get, post, put};
 use config::{get_log_level, get_port, get_similarity_threshold};
 use providers::ProviderType;
 use std::sync::Arc;
@@ -52,19 +53,31 @@ async fn main() {
 
     let shared_state = Arc::new(AppState::new(similarity_threshold, eviction_policy));
 
-    let provider_routes = Router::new()
-        // Provider endpoints
+    // read through cache (proxy) routes
+    let read_through_routes = Router::new()
         .route(ProviderType::OpenAI.path(), post(openai_handler))
         .route(OPEN_AI_REST_PATH, post(openai_handler))
         .route(ProviderType::Anthropic.path(), post(anthropic_handler))
         .route(ProviderType::Generic.path(), post(generic_handler))
         .layer(axum::middleware::from_fn(track_metrics)); // Apply middleware only to these routes
 
+    // cache aside endpoints
+    let cache_aside_routes = Router::new()
+        .route(
+            "/semcache/v1/get",
+            post(endpoints::cache_aside::handler::get),
+        )
+        .route(
+            "/semcache/v1/put",
+            put(endpoints::cache_aside::handler::put),
+        );
+
     let app = Router::new()
         // healthcheck
         .route("/", get(|| async { StatusCode::OK }))
         // Provider endpoints
-        .merge(provider_routes)
+        .merge(read_through_routes)
+        .merge(cache_aside_routes)
         // Prometheus metrics
         .route("/metrics", get(prometheus_metrics_handler))
         // Admin dashboard

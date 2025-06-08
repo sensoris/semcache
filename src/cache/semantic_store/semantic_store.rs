@@ -10,7 +10,7 @@ pub trait SemanticStore: Send + Sync {
     // may return fewer than top_k vectors if not enough matching the similarity threshold are found in the db
     fn get(
         &self,
-        vec: &Vec<f32>,
+        vec: &[f32],
         top_k: usize,
         similarity_threshold: f32,
     ) -> Result<Vec<u64>, CacheError>;
