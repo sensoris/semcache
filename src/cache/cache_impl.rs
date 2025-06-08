@@ -49,6 +49,7 @@ where
             eviction_policy,
         }
     }
+
     fn is_full(&self) -> bool {
         match &self.eviction_policy {
             EvictionPolicy::EntryLimit(limit) => self.response_store.len() >= *limit,
@@ -326,7 +327,7 @@ mod tests {
 
         // when - add first entry
         cache.insert(embedding.clone(), response.clone()).unwrap();
-        assert!(!cache.is_full()); // should have ~200 megabytes (100 string + overhead + 100 semantic)
+        assert!(!cache.is_full()); // should have ~200 megabytes (100 string + overhead (32 bytes) + 100 semantic)
 
         // when - add second entry, this triggers eviction because memory exceeds limit of 300 (200
         // string + overhead (2 * 32 bytes) + 100 semantic)
