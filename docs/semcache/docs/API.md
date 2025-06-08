@@ -18,7 +18,7 @@ The following endpoints are all for use with Semcache operating in proxy mode, i
   | Header Name      | Value                | Required | Description                     |
   |------------------|----------------------|----------|---------------------------------|
   | `Content-Type`   | `application/json`   | yes       | Specifies that body is JSON     |
-  | `x-llm-proxy-upstream`         | `https://full_path_to_desired_upsteam.com/path`   | no       | Allows you to override the default upstream associated with this endpoint  |
+  | `x-llm-proxy-upstream`         | `https://full_path_to_desired_upstream.com/path`   | no       | Allows you to override the default upstream associated with this endpoint  |
   | `x-llm-proxy-host`         | `https://host_to_override_default.com`   | no       | Allows for just overriding the host part of the url    |
   | `x-llm-proxy-prompt`         | `$.json_path_of_prompt_field`   | no       | Allows for overriding the default prompt location   |
 
