@@ -24,7 +24,6 @@ const sidebars: SidebarsConfig = {
 			items: [
 				'configuration/cache-settings',
 				'configuration/embedding-model',
-				'configuration/monitoring',
 			],
 		},
 		{
