@@ -2,6 +2,9 @@
 
 `semcache` is a semantic caching layer for your LLM applications. 
 
+- [semcache website](https://semcache.io)
+- [semcache docs](https://docs.semcache.io)
+
 ## Quick Start
 
 Start the Semcache Docker image:
@@ -41,7 +44,6 @@ response = client.chat.completions.create(
 - **📊 Build-in dashboard** - Monitor cache performance at `/admin`
 - **📤 Smart eviction** - LRU cache eviction policy
 
-For more information and guides refer to our extensive docs: [docs.semcache.io](https://docs.semcache.io)
 
 **Semcache is still in beta and being actively developed.**
 
@@ -55,7 +57,7 @@ Semcache also operates in a "cache-aside" mode, allowing you to load prompts and
 
 ## Example Integrations
 
-For comprehensive provider configuration and detailed code examples, visit our [LLM Providers & Tools documentation](https://docs.semcache.io/llm-providers-tools).
+For comprehensive provider configuration and detailed code examples, visit our [LLM Providers & Tools documentation](https://docs.semcache.io/docs/llm-providers-tools).
 
 ### HTTP Proxy
 
@@ -138,10 +140,6 @@ Contact us at [contact@semcache.io](mailto:contact@semcache.io)
 ## Contributing
 
 Interested in contributing? Contributions to semcache are welcome! Feel free to make a PR.
-
-## Roadmap
-
-See our [full roadmap](https://docs.semcache.io/roadmap) for upcoming features:
 
 ---
 

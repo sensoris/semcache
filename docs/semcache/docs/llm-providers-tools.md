@@ -15,6 +15,8 @@ Use HTTP headers to override routing behavior while keeping existing API specifi
 #### `x-llm-proxy-host`
 Override the upstream host while keeping the provider's API format.
 
+For example, if you call the OpenAI associated route, but set `x-llm-proxy-host: https://api.deepseek.com`, we will use the same path and jsonpath as would be configured for OpenAI, but override the host to deepseek.
+
 #### `x-llm-proxy-upstream`
 Override the complete upstream URL for custom endpoints.
 
@@ -24,6 +26,10 @@ Specify where to find the prompt in your request body using [JSONPath syntax](ht
 - `$.messages[-1].content` - Last message content (OpenAI/Anthropic default)
 - `$.input.text` - Custom field location
 - `$.prompt` - Simple prompt field
+
+#### Order of operations
+- `x-llm-proxy-host` and `x-llm-prompt` will take precedence over the defaults associated with each provider route
+- `x-llm-proxy-upstream` will override both the defaults and what may have been specified in `x-llm-proxy-host`
 
 #### Examples
 
@@ -77,6 +83,7 @@ response = requests.post(
     }
 )
 ```
+*Note that you will need to set both `x-llm-proxy-host` and `x-llm-prompt` in order to use this endpoint.
 
 ## Available Routes
 
