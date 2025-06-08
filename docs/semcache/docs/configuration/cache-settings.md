@@ -29,7 +29,7 @@ docker run -v /path/to/your/config.yaml:/app/config.yaml semcache
 ## Similarity Threshold
 
 ### Current Behavior
-- **Default**: 0.90 (0.95 cosine similarity required)
+- **Default**: 0.90 (0.8 cosine similarity required)
 - **Range**: 0.0 to 1.0
 - **Algorithm**: Cosine similarity
 
