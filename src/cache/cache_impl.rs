@@ -13,6 +13,7 @@ pub enum EvictionPolicy {
 }
 
 const TOP_K: usize = 1;
+// set similarity_threshold to 0.99 to allow for floating point rounding
 const EXACT_MATCH_SIMILARITY: f32 = 0.99;
 
 pub struct CacheImpl<T> {
@@ -113,12 +114,14 @@ where
     // checks cache for an exact match, if it finds one it updates the response_store of found id
     // with new body and returns true, otherwise it returns false
     fn try_update(&self, embedding: &[f32], response: T) -> Result<bool, CacheError> {
-        let maybe_existing_id: Option<u64> =
-        // set similarity_threshold to 0.99 to allow for floating point rounding
-            match self.semantic_store.get(embedding, 1, EXACT_MATCH_SIMILARITY)?.as_slice() {
-                [] => return Ok(false),
-                [head, ..] => Some(*head),
-            };
+        let maybe_existing_id: Option<u64> = match self
+            .semantic_store
+            .get(embedding, 1, EXACT_MATCH_SIMILARITY)?
+            .as_slice()
+        {
+            [] => return Ok(false),
+            [head, ..] => Some(*head),
+        };
         if let Some(id) = maybe_existing_id {
             self.response_store.put(id, response)
         }
