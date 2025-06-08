@@ -1,6 +1,6 @@
 use axum::response::{IntoResponse, Response};
 use std::sync::Arc;
-use tracing::error;
+use tracing::{debug, error};
 
 use axum::{Json, extract::State};
 use reqwest::StatusCode;
@@ -34,20 +34,21 @@ impl IntoResponse for CacheAsideError {
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct GetRequest {
-    pub query: String,
+    pub key: String,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct PutRequest {
-    pub query: String,
-    pub body: String,
+    pub key: String,
+    pub data: String,
 }
 
 pub async fn get(
     State(state): State<Arc<AppState>>,
     Json(request): Json<GetRequest>,
 ) -> Result<Response, CacheAsideError> {
-    let embedding = state.embedding_service.embed(&request.query)?;
+    debug!("cache_aside::GET request received");
+    let embedding = state.embedding_service.embed(&request.key)?;
     let saved_response = state.cache.get_if_present(&embedding)?;
     let http_response = match saved_response {
         Some(response_bytes) => (StatusCode::OK, response_bytes).into_response(),
@@ -60,8 +61,9 @@ pub async fn put(
     State(state): State<Arc<AppState>>,
     Json(request): Json<PutRequest>,
 ) -> Result<Response, CacheAsideError> {
-    let body: Vec<u8> = request.body.into_bytes();
-    let embedding = state.embedding_service.embed(&request.query)?;
+    debug!("cache_aside::PUT request received");
+    let body: Vec<u8> = request.data.into_bytes();
+    let embedding = state.embedding_service.embed(&request.key)?;
     // if we already have an entry associated with the prompt, update it
     let updated_existing_entry = state.cache.try_update(&embedding, body.clone())?;
     if !updated_existing_entry {
@@ -118,7 +120,7 @@ mod tests {
         });
 
         let request_body = GetRequest {
-            query: String::from(prompt),
+            key: String::from(prompt),
         };
 
         // when
@@ -160,7 +162,7 @@ mod tests {
         });
 
         let request_body = GetRequest {
-            query: String::from(prompt),
+            key: String::from(prompt),
         };
 
         // when
@@ -209,7 +211,7 @@ mod tests {
         });
 
         let request_body = GetRequest {
-            query: String::from(prompt),
+            key: String::from(prompt),
         };
 
         // when
@@ -256,7 +258,7 @@ mod tests {
         });
 
         let request_body = GetRequest {
-            query: String::from(prompt),
+            key: String::from(prompt),
         };
 
         // when
@@ -302,8 +304,8 @@ mod tests {
         });
 
         let request_body = PutRequest {
-            query: String::from(prompt),
-            body: String::from(body),
+            key: String::from(prompt),
+            data: String::from(body),
         };
 
         // when
@@ -347,8 +349,8 @@ mod tests {
         });
 
         let request_body = PutRequest {
-            query: String::from(prompt),
-            body: String::from(body),
+            key: String::from(prompt),
+            data: String::from(body),
         };
 
         // when
@@ -391,8 +393,8 @@ mod tests {
         });
 
         let request_body = PutRequest {
-            query: String::from(prompt),
-            body: String::from(body),
+            key: String::from(prompt),
+            data: String::from(body),
         };
 
         // when
@@ -408,7 +410,7 @@ mod tests {
     async fn put_should_insert_if_doesnt_exist() {
         // given
         let prompt = "test prompt";
-        let body = String::from("body ody");
+        let data = String::from("body ody");
         let embedding = vec![0.1, 0.2, 0.3];
 
         // set up embedding service mock
@@ -423,12 +425,12 @@ mod tests {
         mock_cache
             .expect_try_update()
             .times(1)
-            .with(eq(embedding.clone()), eq(body.clone().into_bytes()))
+            .with(eq(embedding.clone()), eq(data.clone().into_bytes()))
             .returning(|_, _| Ok(false));
         mock_cache
             .expect_insert()
             .times(1)
-            .with(eq(embedding.clone()), eq(body.clone().into_bytes()))
+            .with(eq(embedding.clone()), eq(data.clone().into_bytes()))
             .returning(|_, _| Ok(()));
 
         // set up client mock and assert we don't reach it
@@ -443,8 +445,8 @@ mod tests {
         });
 
         let request_body = PutRequest {
-            query: String::from(prompt),
-            body,
+            key: String::from(prompt),
+            data,
         };
 
         // when

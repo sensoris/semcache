@@ -16,9 +16,9 @@ use crate::endpoints::metrics::handler::prometheus_metrics_handler;
 use crate::metrics::metrics::{init_metrics, track_metrics};
 use crate::providers::OPEN_AI_REST_PATH;
 use app_state::AppState;
+use axum::Router;
 use axum::http::StatusCode;
-use axum::routing;
-use axum::{Router, routing::post};
+use axum::routing::{get, post, put};
 use config::{get_log_level, get_port, get_similarity_threshold};
 use providers::ProviderType;
 use std::sync::Arc;
@@ -65,27 +65,27 @@ async fn main() {
     let cache_aside_routes = Router::new()
         .route(
             "/semcache/v1/get",
-            routing::post(endpoints::cache_aside::handler::get),
+            post(endpoints::cache_aside::handler::get),
         )
         .route(
             "/semcache/v1/put",
-            routing::put(endpoints::cache_aside::handler::put),
+            put(endpoints::cache_aside::handler::put),
         );
 
     let app = Router::new()
         // healthcheck
-        .route("/", routing::get(|| async { StatusCode::OK }))
+        .route("/", get(|| async { StatusCode::OK }))
         // Provider endpoints
         .merge(read_through_routes)
         .merge(cache_aside_routes)
         // Prometheus metrics
-        .route("/metrics", routing::get(prometheus_metrics_handler))
+        .route("/metrics", get(prometheus_metrics_handler))
         // Admin dashboard
-        .route("/admin", routing::get(endpoints::admin::handler::dashboard))
+        .route("/admin", get(endpoints::admin::handler::dashboard))
         // Dashboard metrics
         .route(
             "/dashboard-metrics",
-            routing::get(endpoints::metrics::handler::dashboard_metrics_handler),
+            get(endpoints::metrics::handler::dashboard_metrics_handler),
         )
         .nest_service("/static", ServeDir::new("assets"))
         .with_state(shared_state);
