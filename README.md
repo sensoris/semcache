@@ -53,7 +53,7 @@ Semcache accelerates LLM applications by caching responses based on semantic sim
 
 When you make a request Semcache first searches for previously cached answers to similar prompts and delivers them immediately. This eliminates redundant API calls, reducing both latency and costs.
 
-Semcache also operates in a "cache-aside" mode, allowing you to load prompts and responses yourself thus creating a knowledge base for your applications.
+Semcache also operates in a "cache-aside" mode, allowing you to load prompts and responses yourself.
 
 ## Example Integrations
 
@@ -61,13 +61,32 @@ For comprehensive provider configuration and detailed code examples, visit our [
 
 ### HTTP Proxy
 
+Point your existing SDK to Semcache instead of the provider's endpoint.
+
+**OpenAI**
+```python
+from openai import OpenAI
+
+client = OpenAI(base_url="http://localhost:8080", api_key="your-key")
+```
+
+**Anthropic**
+```python
+import anthropic
+
+client = anthropic.Anthropic(
+    base_url="http://localhost:8080",  # Semcache endpoint
+    api_key="your-key"
+)
+```
+
 **LangChain**
 ```python
 from langchain.llms import OpenAI
 
 llm = OpenAI(
     openai_api_base="http://localhost:8080",
-    openai_api_key="your-openai-key"
+    openai_api_key="your-key"
 )
 ```
 
@@ -75,24 +94,28 @@ llm = OpenAI(
 ```python
 import litellm
 
-# Point LiteLLM to Semcache instead of OpenAI directly
 litellm.api_base = "http://localhost:8080"
 ```
 ### Cache-aside
 
+Install with:
+
+```bash
+pip install semcache
+```
+
 ```python
 from semcache import Semcache
 
-# Initialize Semcache with API key
-cache = Semcache(api_key="your-api-key-here",
-                 host="self-hosted-or-cloud-endpoint.com")
+# Initialize the client
+client = Semcache(base_url="http://localhost:8080")
 
-# Cache a LLM response
-cache.put("What is the capital of France?",
-          "Paris")
+# Store a key-data pair
+client.put("What is the capital of France?", "Paris")
 
-# Retrieve cached responses
-assert "Paris" == cache.get("What's France's capital city called?")
+# Retrieve data by semantic similarity
+response = client.get("Tell me France's capital city.")
+print(response)  # "Paris"
 ```
 
 ## Configuration
@@ -119,11 +142,8 @@ Semcache emits comprehensive Prometheus metrics for production monitoring.
 Check out our `/monitoring` directory for our custom Grafana dashboard.
 
 ### Built-in Dashboard
-Access the admin dashboard at `/admin` to monitor:
-- Cache hit rates
-- Response times
-- Memory usage
-- Recent queries
+
+Access the admin dashboard at `/admin` to monitor cache performance.
 
 ## Enterprise
 
@@ -139,7 +159,7 @@ Contact us at [contact@semcache.io](mailto:contact@semcache.io)
 
 ## Contributing
 
-Interested in contributing? Contributions to semcache are welcome! Feel free to make a PR.
+Interested in contributing? Contributions to Semcache are welcome! Feel free to make a PR.
 
 ---
 
