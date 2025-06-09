@@ -100,9 +100,8 @@ where
         // Evict entries if policy limits are exceeded
         // todo maybe this should just trigger an idempotent background job to initiate eviction?
         while self.is_full() {
-            info!("CACHE IS FULL, EVICTING!");
+            info!("cache is full, evicting!");
             if let Some(evicted_id) = self.response_store.pop() {
-                info!("Evicting #{evicted_id}");
                 self.semantic_store.delete(evicted_id)?;
             } else {
                 break; // No more entries to evict
