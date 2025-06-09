@@ -79,7 +79,7 @@ impl SemanticStore for FlatIPFaissStore {
         Ok(())
     }
 
-    // TODO (v0): this method is CLAUDE, defo need to evaluate it properly, read online how best to do this
+    // TODO: improve this to be more accurate
     fn memory_usage_bytes(&self) -> usize {
         let read_guard = self.faiss_store.read().expect(RW_LOCK_ERROR);
 

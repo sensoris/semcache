@@ -59,9 +59,10 @@ async fn main() {
         .route(OPEN_AI_REST_PATH, post(openai_handler))
         .route(ProviderType::Anthropic.path(), post(anthropic_handler))
         .route(ProviderType::Generic.path(), post(generic_handler))
-        .layer(axum::middleware::from_fn(track_metrics)); // Apply middleware only to these routes
+        .layer(axum::middleware::from_fn(track_metrics));
 
     // cache aside endpoints
+    // todo add metrics middleware for these routes
     let cache_aside_routes = Router::new()
         .route(
             "/semcache/v1/get",

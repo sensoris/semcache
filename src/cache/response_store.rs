@@ -1,4 +1,5 @@
 use lru::LruCache;
+use std::mem::size_of;
 use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, Mutex};
 use tracing::error;
@@ -20,6 +21,9 @@ pub struct ResponseStore<T> {
 const MUTEX_PANIC: &str = "Mutex attempted to get grabbed twice by the same thread, unrecoverable error in response_store";
 
 impl<T: Clone + 'static> ResponseStore<T> {
+    // Compile-time constant for base entry size
+    const BASE_ENTRY_SIZE: usize = size_of::<CacheEntry<T>>();
+
     // Creates a new ResponseStore for a generic response type. Does not automatically evict
     // items so those operations need to be performed by the orchestrator.
     pub fn new() -> Self {
@@ -39,7 +43,7 @@ impl<T: Clone + 'static> ResponseStore<T> {
     }
 
     pub fn put(&self, id: u64, response: T) {
-        let size_bytes = calculate_entry_size(&response);
+        let size_bytes = self.calculate_entry_size(&response);
         let entry = CacheEntry {
             response,
             metadata: EntryMetadata { size_bytes },
@@ -49,9 +53,23 @@ impl<T: Clone + 'static> ResponseStore<T> {
             error!(error = ?err, "Mutex poisoned");
             panic!("{}", MUTEX_PANIC)
         });
+
+        // If the cache contains the id, we need to get its byte_size to maintain the total_size_bytes
+        let old_size = cache
+            .peek(&id)
+            .map(|entry| entry.metadata.size_bytes)
+            .unwrap_or(0);
+
         cache.put(id, entry);
-        self.total_size_bytes
-            .fetch_add(size_bytes, std::sync::atomic::Ordering::Relaxed);
+
+        let size_delta = size_bytes as i64 - old_size as i64;
+        if size_delta > 0 {
+            self.total_size_bytes
+                .fetch_add(size_delta as usize, std::sync::atomic::Ordering::Relaxed);
+        } else if size_delta < 0 {
+            self.total_size_bytes
+                .fetch_sub((-size_delta) as usize, std::sync::atomic::Ordering::Relaxed);
+        }
     }
 
     pub fn pop(&self) -> Option<u64> {
@@ -82,25 +100,20 @@ impl<T: Clone + 'static> ResponseStore<T> {
         self.total_size_bytes
             .load(std::sync::atomic::Ordering::Relaxed)
     }
-}
 
-// TODO (v0): placeholder function while we evaluate better methods
-fn calculate_entry_size<T: Clone + 'static>(response: &T) -> usize {
-    use std::any::Any;
-    use std::mem;
+    fn calculate_entry_size(&self, response: &T) -> usize {
+        use std::any::Any;
 
-    // Base size of the CacheEntry struct
-    let base_size = mem::size_of::<CacheEntry<T>>();
+        let response_size =
+            if let Some(bytes_response) = (response as &dyn Any).downcast_ref::<Vec<u8>>() {
+                bytes_response.len() // actual byte vector content size
+            } else {
+                error!("Response type not supported");
+                size_of::<T>() // fallback to type size for other types
+            };
 
-    // For Vec<u8> types, calculate actual byte vector content size
-    let response_size =
-        if let Some(bytes_response) = (response as &dyn Any).downcast_ref::<Vec<u8>>() {
-            bytes_response.len() // actual byte vector content size
-        } else {
-            mem::size_of::<T>() // fallback to type size for other types
-        };
-
-    base_size + response_size
+        Self::BASE_ENTRY_SIZE + response_size
+    }
 }
 
 #[cfg(test)]
@@ -110,8 +123,8 @@ mod tests {
     #[test]
     fn put_and_get() {
         let cache = ResponseStore::new();
-        let answer = "The capital of France is Paris.";
-        cache.put(1, answer);
+        let answer = b"The capital of France is Paris.".to_vec();
+        cache.put(1, answer.clone());
 
         let response = cache.get(1).unwrap();
         assert_eq!(answer, response);
@@ -120,9 +133,9 @@ mod tests {
     #[test]
     fn pop_removes_lru_entry() {
         let cache = ResponseStore::new();
-        cache.put(1, "first");
-        cache.put(2, "second");
-        cache.put(3, "third");
+        cache.put(1, b"first".to_vec());
+        cache.put(2, b"second".to_vec());
+        cache.put(3, b"third".to_vec());
 
         cache.get(1);
         cache.get(3);
@@ -134,7 +147,7 @@ mod tests {
 
     #[test]
     fn pop_returns_none_when_empty() {
-        let cache: ResponseStore<String> = ResponseStore::new();
+        let cache: ResponseStore<Vec<u8>> = ResponseStore::new();
         assert_eq!(cache.pop(), None);
     }
 
@@ -143,11 +156,11 @@ mod tests {
         let cache = ResponseStore::new();
         assert_eq!(cache.len(), 0);
 
-        cache.put(1, "one");
+        cache.put(1, b"one".to_vec());
         assert_eq!(cache.len(), 1);
 
-        cache.put(2, "two");
-        cache.put(3, "three");
+        cache.put(2, b"two".to_vec());
+        cache.put(3, b"three".to_vec());
         assert_eq!(cache.len(), 3);
 
         cache.pop();
@@ -159,11 +172,11 @@ mod tests {
         let cache = ResponseStore::new();
         let initial_memory = cache.memory_usage_bytes();
 
-        cache.put(1, "A".repeat(100));
+        cache.put(1, vec![b'A'; 100]);
         let after_one = cache.memory_usage_bytes();
         assert!(after_one > initial_memory);
 
-        cache.put(2, "B".repeat(200));
+        cache.put(2, vec![b'B'; 200]);
         let after_two = cache.memory_usage_bytes();
         assert!(after_two > after_one);
     }
@@ -171,13 +184,35 @@ mod tests {
     #[test]
     fn memory_usage_decreases_after_pop() {
         let cache = ResponseStore::new();
-        cache.put(1, "A".repeat(1000));
-        cache.put(2, "B".repeat(1000));
+        cache.put(1, vec![b'A'; 1000]);
+        cache.put(2, vec![b'B'; 1000]);
 
         let before_pop = cache.memory_usage_bytes();
         cache.pop();
         let after_pop = cache.memory_usage_bytes();
 
         assert!(after_pop < before_pop);
+    }
+
+    #[test]
+    fn put_existing_key_updates_memory_usage_correctly() {
+        let cache = ResponseStore::new();
+
+        // Put initial entry with small size
+        cache.put(1, b"small".to_vec());
+        let after_small = cache.memory_usage_bytes();
+        assert_eq!(cache.len(), 1);
+
+        // Put same key with larger size - should replace, not add
+        cache.put(1, "much_larger_string".repeat(100).into_bytes());
+        let after_large = cache.memory_usage_bytes();
+        assert_eq!(cache.len(), 1); // Length should stay the same
+        assert!(after_large > after_small); // Memory should increase
+
+        // Put same key with smaller size - should decrease memory
+        cache.put(1, b"tiny".to_vec());
+        let after_tiny = cache.memory_usage_bytes();
+        assert_eq!(cache.len(), 1); // Length should stay the same
+        assert!(after_tiny < after_large); // Memory should decrease from large
     }
 }
