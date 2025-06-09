@@ -5,7 +5,7 @@ use serde_json::Value;
 
 use crate::{endpoints::chat::error::CompletionError, providers::ProviderType};
 
-//TODO (V0): use the test config attribute for automocks to avoid generating mock impls for non test code
+//TODO: use the test config attribute for automocks to avoid generating mock impls for non test code
 #[cfg_attr(test, mockall::automock)]
 #[async_trait]
 pub trait Client: Send + Sync {

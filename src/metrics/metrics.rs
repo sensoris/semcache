@@ -82,7 +82,7 @@ pub fn init_metrics() {
     initialize_metrics_collection();
 }
 
-// Axum middlelayer to track chat completion requests
+// Axum middleware to track chat completion requests
 pub async fn track_metrics(req: Request, next: Next) -> impl IntoResponse {
     let start = Instant::now();
     let path = if let Some(matched_path) = req.extensions().get::<MatchedPath>() {
@@ -96,9 +96,8 @@ pub async fn track_metrics(req: Request, next: Next) -> impl IntoResponse {
 
     let latency = start.elapsed().as_secs_f64();
     let status = response.status().as_u16().to_string();
+
     // Extract cache status from response
-    // todo have this downstream tell us the cache result
-    // todo         resp.extensions_mut().insert(CacheStatus::Miss);
     let cache_status = response
         .extensions()
         .get::<CacheStatus>()
@@ -111,12 +110,7 @@ pub async fn track_metrics(req: Request, next: Next) -> impl IntoResponse {
 
     if response.status() != StatusCode::NOT_FOUND {
         CHAT_COMPLETION_HTTP_REQUESTS
-            .with_label_values(&[
-                method.as_str(), // Convert Method to &str
-                &path,           // Already &str
-                &status,         // &String -> &str
-                cache_status,    // Already &str
-            ])
+            .with_label_values(&[method.as_str(), &path, &status, cache_status])
             .observe(latency);
     }
 

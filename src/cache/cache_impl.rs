@@ -4,6 +4,7 @@ use super::cache::Cache;
 use super::error::CacheError;
 use super::semantic_store::semantic_store::SemanticStore;
 use crate::cache::response_store::ResponseStore;
+use crate::metrics::metrics::CACHE_SIZE;
 use tracing::info;
 
 #[derive(Debug, Clone)]
@@ -92,13 +93,13 @@ where
 
     fn insert(&self, embedding: Vec<f32>, response: T) -> Result<(), CacheError> {
         let id = self.id_generator.fetch_add(1, Ordering::Relaxed);
+        info!("Cache size: {}", self.response_store.len());
 
         self.response_store.put(id, response);
         self.semantic_store.put(id, embedding)?;
 
         // Evict entries if policy limits are exceeded
-        // TODO (not V0): handle multiple threads attempting to evict simultaneously
-        // maybe this should just trigger an idempotent background job to initiate eviction?
+        // todo maybe this should just trigger an idempotent background job to initiate eviction?
         while self.is_full() {
             info!("CACHE IS FULL, EVICTING!");
             if let Some(evicted_id) = self.response_store.pop() {
@@ -108,7 +109,7 @@ where
                 break; // No more entries to evict
             }
         }
-
+        CACHE_SIZE.set(self.response_store.len() as i64);
         Ok(())
     }
 
@@ -408,5 +409,41 @@ mod tests {
 
         let stored = cache.response_store.get(existing_id);
         assert_eq!(stored, None);
+    }
+
+    #[test]
+    fn cache_size_metric_tracks_correctly() {
+        // Setup cache
+        let mut mock_store = MockSemanticStore::new();
+        mock_store.expect_put().times(2).returning(|_, _| Ok(()));
+        mock_store
+            .expect_get()
+            .times(1)
+            .returning(|_, _, _| Ok(vec![0]));
+
+        let cache = CacheImpl::new(
+            Box::new(mock_store),
+            ResponseStore::new(),
+            0.9,
+            EvictionPolicy::EntryLimit(100),
+        );
+
+        // Insert first entry - should increment len
+        cache
+            .insert(vec![0.1, 0.2, 0.3], "first response".to_string())
+            .unwrap();
+        assert_eq!(cache.response_store.len(), 1);
+
+        // Insert second entry - should increment len again
+        cache
+            .insert(vec![0.4, 0.5, 0.6], "second response".to_string())
+            .unwrap();
+        assert_eq!(cache.response_store.len(), 2);
+
+        // Try update (overwrite) - should NOT change len
+        cache
+            .try_update(&[0.1, 0.2, 0.3], "new response".to_string())
+            .unwrap();
+        assert_eq!(cache.response_store.len(), 2);
     }
 }
