@@ -103,7 +103,6 @@ where
         while self.is_full() {
             info!("CACHE IS FULL, EVICTING!");
             if let Some(evicted_id) = self.response_store.pop() {
-                info!("Evicting #{evicted_id}");
                 self.semantic_store.delete(evicted_id)?;
             } else {
                 break; // No more entries to evict
