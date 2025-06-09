@@ -63,6 +63,8 @@ impl<T: Clone + 'static> ResponseStore<T> {
         cache.put(id, entry);
 
         let size_delta = size_bytes as i64 - old_size as i64;
+
+        // Avoid casting negative i64 to usize which could wrap to huge number and cause fetch_add to overflow incorrectly
         if size_delta > 0 {
             self.total_size_bytes
                 .fetch_add(size_delta as usize, std::sync::atomic::Ordering::Relaxed);
