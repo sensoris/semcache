@@ -42,7 +42,7 @@ const config: Config = {
 					// Please change this to your repo.
 					// Remove this to remove the "edit this page" links.
 					editUrl:
-						'https://github.com/sensoris/semcache/tree/master/docs/semcache/',
+						'https://github.com/sensoris/semcache/tree/main/docs/semcache/',
 					routeBasePath: 'docs',
 				},
 				blog: false,
