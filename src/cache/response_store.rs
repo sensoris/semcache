@@ -1,4 +1,3 @@
-use crate::metrics::metrics::CACHE_SIZE;
 use lru::LruCache;
 use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, Mutex};
@@ -53,7 +52,6 @@ impl<T: Clone + 'static> ResponseStore<T> {
         cache.put(id, entry);
         self.total_size_bytes
             .fetch_add(size_bytes, std::sync::atomic::Ordering::Relaxed);
-        CACHE_SIZE.inc()
     }
 
     pub fn pop(&self) -> Option<u64> {
@@ -66,7 +64,6 @@ impl<T: Clone + 'static> ResponseStore<T> {
                 entry.metadata.size_bytes,
                 std::sync::atomic::Ordering::Relaxed,
             );
-            CACHE_SIZE.dec();
             Some(id)
         } else {
             None
