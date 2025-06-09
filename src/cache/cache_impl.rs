@@ -5,7 +5,7 @@ use super::error::CacheError;
 use super::semantic_store::semantic_store::SemanticStore;
 use crate::cache::response_store::ResponseStore;
 use crate::metrics::metrics::CACHE_SIZE;
-use tracing::info;
+use tracing::{debug, info};
 
 #[derive(Debug, Clone)]
 pub enum EvictionPolicy {
@@ -93,7 +93,6 @@ where
 
     fn insert(&self, embedding: Vec<f32>, response: T) -> Result<(), CacheError> {
         let id = self.id_generator.fetch_add(1, Ordering::Relaxed);
-        info!("Cache size: {}", self.response_store.len());
 
         self.response_store.put(id, response);
         self.semantic_store.put(id, embedding)?;
@@ -110,6 +109,7 @@ where
             }
         }
         CACHE_SIZE.set(self.response_store.len() as i64);
+        debug!("Cache size: {}", self.response_store.len());
         Ok(())
     }
 
