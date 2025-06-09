@@ -110,7 +110,6 @@ where
             }
         }
         CACHE_SIZE.set(self.response_store.len() as i64);
-        info!("Again: {}", self.response_store.len());
         Ok(())
     }
 
