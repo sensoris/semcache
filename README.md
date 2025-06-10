@@ -10,7 +10,7 @@
 Start the Semcache Docker image:
 
 ```bash
-docker run -p 8080:8080 ghcr.io/sensoris/semcache:latest
+docker run -p 8080:8080 semcache/semcache:latest
 ```
 
 Configure your application e.g with the OpenAI Python SDK:

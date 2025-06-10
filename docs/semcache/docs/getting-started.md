@@ -14,7 +14,7 @@ Get Semcache up and running as an HTTP proxy in a few minutes.
 Pull and run the Semcache Docker image:
 
 ```bash
-docker run -p 8080:8080 ghcr.io/sensoris/semcache:latest
+docker run -p 8080:8080 semcache/semcache:latest
 ```
 
 Semcache will start on `http://localhost:8080` and is ready to proxy LLM requests.

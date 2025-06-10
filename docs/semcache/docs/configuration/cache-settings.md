@@ -23,7 +23,7 @@ eviction_policy:
 
 These values are stored in [config.yaml](https://github.com/sensoris/semcache/blob/main/config.yaml), but can be overriden with a custom file if required.
 ```bash
-docker run -v /path/to/your/config.yaml:/app/config.yaml ghcr.io/sensoris/semcache:latest
+docker run -v /path/to/your/config.yaml:/app/config.yaml semcache/semcache:latest
 ```
 
 ## Similarity Threshold
