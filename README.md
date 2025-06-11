@@ -30,7 +30,7 @@ response = client.chat.completions.create(
 # Cache hit - returns instantly 
 response = client.chat.completions.create(
     model="gpt-4o",
-    messages=[{"role": "user", "content": "Tell me Fracnce's capital city"}]
+    messages=[{"role": "user", "content": "Tell me France's capital city"}]
 )
 ```
 
