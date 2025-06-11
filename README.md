@@ -30,8 +30,17 @@ response = client.chat.completions.create(
 # Cache hit - returns instantly 
 response = client.chat.completions.create(
     model="gpt-4o",
-    messages=[{"role": "user", "content": "What's France's capital city?"}]
+    messages=[{"role": "user", "content": "Tell me France's capital city"}]
 )
+```
+
+Node.js follows a similar pattern of changing the base URL to point to your Semcache host:
+
+```js
+const OpenAI = require('openai');
+
+// Point to your Semcache host instead of OpenAI
+const openai = new OpenAI({baseURL: 'http://localhost:8080', apiKey: 'your-key'});
 ```
 
 ## Features
