@@ -53,15 +53,23 @@ where
 
     fn is_full(&self) -> bool {
         match &self.eviction_policy {
-            EvictionPolicy::EntryLimit(limit) => self.response_store.len() >= *limit,
+            EvictionPolicy::EntryLimit(limit) => {
+                debug!(
+                    "Cache size: {}, limit: {}",
+                    self.response_store.len(),
+                    limit
+                );
+                self.response_store.len() >= *limit
+            }
             EvictionPolicy::MemoryLimitMb(limit) => {
                 let response_store_memory_used_mb =
-                    self.response_store.memory_usage_bytes() as f64 / 1024.0;
+                    self.response_store.memory_usage_bytes() as f64 / (1024.0 * 1024.0);
                 let semantic_store_memory_used_mb =
-                    self.semantic_store.memory_usage_bytes() as f64 / 1024.0;
+                    self.semantic_store.memory_usage_bytes() as f64 / (1024.0 * 1024.0);
                 let total_memory_used_mb =
                     response_store_memory_used_mb + semantic_store_memory_used_mb;
                 let limit_mb = *limit as f64;
+                debug!("Cache size: {}, limit: {}", total_memory_used_mb, limit_mb);
                 total_memory_used_mb >= limit_mb
             }
         }
@@ -304,36 +312,50 @@ mod tests {
 
     #[test]
     fn insert_should_evict_when_memory_limit_reached() {
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
         let embedding = vec![0.1, 0.2, 0.3];
-        let response = "A".repeat(100 * 1024).into_bytes();
+        let response = "A".repeat(400 * 1024).into_bytes(); // 400KB
+
+        // Track number of entries in semantic store for realistic memory reporting
+        let entry_count = Arc::new(AtomicUsize::new(0));
+        let entry_count_clone = Arc::clone(&entry_count);
+        let entry_count_clone2 = Arc::clone(&entry_count);
 
         // given
         let mut mock_store = MockSemanticStore::new();
 
-        mock_store.expect_put().times(3).returning(|_, _| Ok(()));
-        mock_store.expect_delete().times(2).returning(|_| Ok(()));
+        mock_store.expect_put().times(3).returning(move |_, _| {
+            entry_count_clone.fetch_add(1, Ordering::Relaxed);
+            Ok(())
+        });
+        mock_store.expect_delete().times(2).returning(move |_| {
+            entry_count_clone2.fetch_sub(1, Ordering::Relaxed);
+            Ok(())
+        });
         mock_store
             .expect_memory_usage_bytes()
-            .returning(|| 100 * 1024);
+            .returning(move || entry_count.load(Ordering::Relaxed) * 400 * 1024); // 400KB per entry
 
         let response_store = ResponseStore::new();
 
+        // Set limit to 1MB - each entry uses ~0.8MB (400KB response + 400KB semantic)
         let cache = CacheImpl::new(
             Box::new(mock_store),
             response_store,
             0.9,
-            EvictionPolicy::MemoryLimitMb(300),
+            EvictionPolicy::MemoryLimitMb(1),
         );
 
         // when - add first entry
         cache.insert(embedding.clone(), response.clone()).unwrap();
-        assert!(!cache.is_full()); // should have ~200 megabytes (100 string + overhead (32 bytes) + 100 semantic)
+        assert!(!cache.is_full()); // should have ~0.8MB which is under 1MB limit
 
-        // when - add second entry, this triggers eviction because memory exceeds limit of 300 (200
-        // string + overhead (2 * 32 bytes) + 100 semantic)
+        // when - add second entry, this should trigger eviction because 2 entries would be ~1.6MB
         cache.insert(embedding.clone(), response.clone()).unwrap();
         assert_eq!(cache.response_store.len(), 1); // evicted back to 1
-        assert!(!cache.is_full());
+        assert!(!cache.is_full()); // single entry is under limit
 
         // when - add third entry, again triggers eviction
         cache.insert(embedding.clone(), response.clone()).unwrap();

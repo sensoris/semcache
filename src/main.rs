@@ -24,7 +24,7 @@ use providers::ProviderType;
 use std::sync::Arc;
 use tokio::signal;
 use tower_http::services::ServeDir;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 use tracing_subscriber::EnvFilter;
 
 const CONFIG_FILE: &str = "config.yaml";
@@ -50,6 +50,8 @@ async fn main() {
         error!(?err, "Missing or malformed eviction policy from conf");
         panic!("Missing or malformed eviction policy in config")
     });
+
+    info!("Eviction policy {:?}", eviction_policy);
 
     let shared_state = Arc::new(AppState::new(similarity_threshold, eviction_policy));
 
