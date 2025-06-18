@@ -16,15 +16,15 @@ use crate::endpoints::metrics::handler::prometheus_metrics_handler;
 use crate::metrics::metrics::{init_metrics, track_metrics};
 use crate::providers::OPEN_AI_REST_PATH;
 use app_state::AppState;
-use axum::Router;
 use axum::http::StatusCode;
 use axum::routing::{get, post, put};
+use axum::Router;
 use config::{get_log_level, get_port, get_similarity_threshold};
 use providers::ProviderType;
 use std::sync::Arc;
 use tokio::signal;
 use tower_http::services::ServeDir;
-use tracing::{debug, error, info};
+use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
 
 const CONFIG_FILE: &str = "config.yaml";
