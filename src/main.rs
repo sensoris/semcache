@@ -51,6 +51,8 @@ async fn main() {
         panic!("Missing or malformed eviction policy in config")
     });
 
+    info!("Eviction policy {:?}", eviction_policy);
+
     let shared_state = Arc::new(AppState::new(similarity_threshold, eviction_policy));
 
     // read through cache (proxy) routes
