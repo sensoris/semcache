@@ -95,7 +95,7 @@ We also expose endpoints that allow you to utilize semcache in a cache-aside man
 
 ### Write to cache
 
-#### `PUT /v1/semcache/put`
+#### `PUT /semcache/v1/put`
 
 ### Request
 
@@ -120,7 +120,7 @@ We also expose endpoints that allow you to utilize semcache in a cache-aside man
 
 ### Read from cache
 
-#### `PUT /v1/semcache/put`
+#### `PUT /semcache/v1/put`
 
 ### Request
 
