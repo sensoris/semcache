@@ -19,7 +19,7 @@ docker run -p 8080:8080 semcache/semcache:latest
 
 Semcache will start on `http://localhost:8080` and is ready to proxy LLM requests.
 
-## Setting Up The Client
+## Setting up proxy client
 
 Semcache acts as a drop-in replacement for LLM APIs. Point your existing SDK to Semcache instead of the provider's endpoint:
 
@@ -105,7 +105,7 @@ This request will:
 3. The provider responds with the answer
 4. Semcache caches the response and returns it to you
 
-## Testing Semantic Similarity
+### Testing Semantic Similarity
 
 Now try a semantically similar but differently worded question:
 
@@ -153,7 +153,7 @@ Now try a semantically similar but differently worded question:
 
 Even though the wording is different, Semcache recognizes the semantic similarity and returns the cached response instantly - no API call to the upstream provider!
 
-## Checking Cache Status
+### Checking Cache Status
 
 You can verify cache hits by checking the response headers. If there is a cache hit the `X-Cache-Status` header will be set to `hit`:
 
@@ -245,6 +245,50 @@ You can verify cache hits by checking the response headers. If there is a cache 
     cache_status = response.headers.get("X-Cache-Status")
     print(f"Cache status: {cache_status}")  # Should show "hit"
     print(f"Response: {response.json()['choices'][0]['message']['content']}")
+    ```
+  </TabItem>
+</Tabs>
+
+
+## Setting up cache aside instance
+
+<Tabs groupId="sdk">
+  <TabItem value="python" label="Python" default>
+    Install with
+    ```bash
+    pip install semcache
+    ```
+
+    ```python
+    from semcache import Semcache
+    
+    # Initialize the client
+    client = Semcache(base_url="http://localhost:8080")
+    
+    # Store a key-data pair
+    client.put("What is the capital of France?", "Paris")
+    
+    # Retrieve data by semantic similarity
+    response = client.get("Tell me France's capital city.")
+    print(response)  # "Paris"
+    ```
+  </TabItem>
+  <TabItem value="Node.js" label="Node.js">
+    Install with
+    ```bash
+    npm install semcache
+    ```
+    ```javascript
+    const SemcacheClient = require('semcache');
+    
+    const client = new SemcacheClient('http://localhost:8080');
+    
+    (async () => {
+      await client.put('What is the capital of France?', 'Paris');
+    
+      const result = await client.get('What is the capital of France?');
+      console.log(result); // => 'Paris'
+    })();
     ```
   </TabItem>
 </Tabs>

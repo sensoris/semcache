@@ -105,10 +105,10 @@ import litellm
 
 litellm.api_base = "http://localhost:8080"
 ```
+
+
 ### Cache-aside
-
 Install with:
-
 ```bash
 pip install semcache
 ```
@@ -125,6 +125,28 @@ client.put("What is the capital of France?", "Paris")
 # Retrieve data by semantic similarity
 response = client.get("Tell me France's capital city.")
 print(response)  # "Paris"
+```
+
+
+or in Node.js
+
+Install with
+```bash
+npm install semcache
+```
+Use the sdk in your service
+
+```javascript
+const SemcacheClient = require('semcache');
+
+const client = new SemcacheClient('http://localhost:8080');
+
+(async () => {
+  await client.put('What is the capital of France?', 'Paris');
+
+  const result = await client.get('What is the capital of France?');
+  console.log(result); // => 'Paris'
+})();
 ```
 
 ## Configuration
