@@ -5,7 +5,10 @@ use reqwest::StatusCode;
 use thiserror::Error;
 use tracing::warn;
 
-use crate::{cache::error::CacheError, embedding::error::EmbeddingError, providers::ProviderError};
+use crate::{
+    app_state::AppStateError, cache::error::CacheError, embedding::error::EmbeddingError,
+    providers::ProviderError,
+};
 
 // Error type
 #[derive(Debug, Error)]
@@ -30,6 +33,9 @@ pub enum CompletionError {
 
     #[error("Provider error: {0}")]
     InternalProviderError(#[from] ProviderError),
+
+    #[error("AppState error: {0}")]
+    AppStateError(#[from] AppStateError),
 }
 
 impl IntoResponse for CompletionError {
@@ -80,6 +86,17 @@ impl IntoResponse for CompletionError {
                     format!("Error handling request: {err}"),
                 )
                     .into_response()
+            }
+            Self::AppStateError(err) => {
+                warn!("AppState error: {}", err);
+                match err {
+                    AppStateError::InvalidNamespace(_) => {
+                        (StatusCode::BAD_REQUEST, err.to_string()).into_response()
+                    }
+                    _ => {
+                        (StatusCode::INTERNAL_SERVER_ERROR, "Something went wrong!").into_response()
+                    }
+                }
             }
         }
     }

@@ -5,4 +5,5 @@ use crate::embedding::error::EmbeddingError;
 #[automock]
 pub trait EmbeddingService: Send + Sync {
     fn embed(&self, text: &str) -> Result<Vec<f32>, EmbeddingError>;
+    fn get_dimensionality(&self) -> u32;
 }

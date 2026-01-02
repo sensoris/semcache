@@ -7,7 +7,7 @@ use crate::cache::response_store::ResponseStore;
 use crate::metrics::metrics::CACHE_SIZE;
 use tracing::{debug, info};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum EvictionPolicy {
     EntryLimit(usize),
     MemoryLimitMb(usize), // Could also implement a "combined" of both limits

@@ -22,16 +22,6 @@ impl FastEmbedService {
             model_name: EmbeddingModel::AllMiniLML6V2,
         }
     }
-
-    pub fn get_dimensionality(&self) -> u32 {
-        match &self.model_name {
-            EmbeddingModel::AllMiniLML6V2 => 384,
-            _ => panic!(
-                "{}",
-                EmbeddingError::SetupError(String::from("Embedding model with unknown size",))
-            ),
-        }
-    }
 }
 
 impl EmbeddingService for FastEmbedService {
@@ -42,5 +32,15 @@ impl EmbeddingService for FastEmbedService {
             .map_err(|e| EmbeddingError::GenerationError(e.to_string()))?;
 
         Ok(embeddings.into_iter().next().unwrap())
+    }
+
+    fn get_dimensionality(&self) -> u32 {
+        match &self.model_name {
+            EmbeddingModel::AllMiniLML6V2 => 384,
+            _ => panic!(
+                "{}",
+                EmbeddingError::SetupError(String::from("Embedding model with unknown size",))
+            ),
+        }
     }
 }
