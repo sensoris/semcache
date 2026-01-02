@@ -20,6 +20,8 @@ jobs:
         run: cargo test -- --nocapture
         env:
           LD_LIBRARY_PATH: "/usr/local/lib"
+          LIBRARY_PATH: "/usr/local/lib"
+          PKG_CONFIG_PATH: "/usr/local/lib/pkgconfig"
 
   integration-test:
     name: Container Test
