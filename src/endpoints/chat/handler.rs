@@ -13,7 +13,8 @@ use crate::app_state::AppState;
 use crate::metrics::metrics::{CACHE_HIT, CACHE_MISS, CacheStatus};
 use crate::providers::ProviderType;
 use crate::utils::{
-    header_utils::PROXY_PROMPT_LOCATION_HEADER, json_extract::extract_prompt_from_path,
+    header_utils::{PROXY_PROMPT_LOCATION_HEADER, extract_namespace},
+    json_extract::extract_prompt_from_path,
 };
 
 pub async fn completions(
@@ -22,13 +23,17 @@ pub async fn completions(
     Json(request_body): Json<Value>,
     provider: ProviderType,
 ) -> Result<Response, CompletionError> {
+    // Extract namespace from headers, get the appropriate cache
+    let namespace = extract_namespace(&headers);
+    let cache = state.get_cache(&namespace)?;
+
     let prompt = extract_prompt_from_path(
         &request_body,
         provider.prompt_json_path(headers.get(&PROXY_PROMPT_LOCATION_HEADER))?,
     )?;
     let embedding = state.embedding_service.embed(&prompt)?;
 
-    if let Some(saved_response) = state.cache.get_if_present(&embedding)? {
+    if let Some(saved_response) = cache.get_if_present(&embedding)? {
         // Return cached response with 200 OK and minimal headers
         let mut response_headers = HeaderMap::new();
         response_headers.insert("X-Cache-Status", "hit".parse().unwrap());
@@ -49,9 +54,7 @@ pub async fn completions(
 
     // only store the response if the status code of the response is 2XX
     if upstream_response.status_code.is_success() {
-        state
-            .cache
-            .insert(embedding, upstream_response.response_body.clone())?;
+        cache.insert(embedding, upstream_response.response_body.clone())?;
     }
 
     let mut response = (
@@ -110,11 +113,11 @@ mod tests {
         mock_client.expect_post_http_request().times(0);
 
         // put mocked objects into the appstate
-        let app_state = Arc::new(AppState {
-            embedding_service: Box::new(mock_embed),
-            cache: Box::new(mock_cache),
-            http_client: Box::new(mock_client),
-        });
+        let app_state = Arc::new(AppState::new_with_cache_for_test(
+            Box::new(mock_client),
+            Box::new(mock_embed),
+            Box::new(mock_cache),
+        ));
 
         let request_body = json!({
             "messages": [{
@@ -165,11 +168,11 @@ mod tests {
         let mut mock_client = MockClient::new();
         mock_client.expect_post_http_request().times(0);
 
-        let app_state = Arc::new(AppState {
-            embedding_service: Box::new(mock_embed),
-            cache: Box::new(mock_cache),
-            http_client: Box::new(mock_client),
-        });
+        let app_state = Arc::new(AppState::new_with_cache_for_test(
+            Box::new(mock_client),
+            Box::new(mock_embed),
+            Box::new(mock_cache),
+        ));
 
         let request_body = json!({
             "messages": [{
@@ -235,11 +238,11 @@ mod tests {
             .times(0)
             .returning(|_, _, _| unreachable!());
 
-        let app_state = Arc::new(AppState {
-            embedding_service: Box::new(mock_embed),
-            cache: Box::new(mock_cache),
-            http_client: Box::new(mock_client),
-        });
+        let app_state = Arc::new(AppState::new_with_cache_for_test(
+            Box::new(mock_client),
+            Box::new(mock_embed),
+            Box::new(mock_cache),
+        ));
 
         // Test OpenAI message
         let request_body = json!({
@@ -346,11 +349,11 @@ mod tests {
             }
         });
 
-        let app_state = Arc::new(AppState {
-            embedding_service: Box::new(mock_embed),
-            cache: Box::new(mock_cache),
-            http_client: Box::new(mock_client),
-        });
+        let app_state = Arc::new(AppState::new_with_cache_for_test(
+            Box::new(mock_client),
+            Box::new(mock_embed),
+            Box::new(mock_cache),
+        ));
 
         let request_body = json!({
             "messages": [{
@@ -417,11 +420,11 @@ mod tests {
             }
         });
 
-        let app_state = Arc::new(AppState {
-            embedding_service: Box::new(mock_embed),
-            cache: Box::new(mock_cache),
-            http_client: Box::new(mock_client),
-        });
+        let app_state = Arc::new(AppState::new_with_cache_for_test(
+            Box::new(mock_client),
+            Box::new(mock_embed),
+            Box::new(mock_cache),
+        ));
 
         let request_body = json!({
             "messages": [{

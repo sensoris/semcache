@@ -7,7 +7,11 @@ use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::{app_state::AppState, cache::error::CacheError, embedding::error::EmbeddingError};
+use crate::{
+    app_state::{AppState, AppStateError},
+    cache::error::CacheError,
+    embedding::error::EmbeddingError,
+};
 
 #[derive(Debug, Error)]
 pub enum CacheAsideError {
@@ -15,6 +19,8 @@ pub enum CacheAsideError {
     InternalEmbedding(#[from] EmbeddingError),
     #[error("Error in caching layer: {0}")]
     InternalCache(#[from] CacheError),
+    #[error("AppState error: {0}")]
+    AppStateError(#[from] AppStateError),
 }
 
 impl IntoResponse for CacheAsideError {
@@ -28,28 +34,56 @@ impl IntoResponse for CacheAsideError {
                 error!(?err, "returning internal error to user");
                 (StatusCode::INTERNAL_SERVER_ERROR, "Something went wrong").into_response()
             }
+            Self::AppStateError(err) => {
+                error!(?err, "AppState error");
+                match err {
+                    AppStateError::InvalidNamespace(_) => {
+                        (StatusCode::BAD_REQUEST, err.to_string()).into_response()
+                    }
+                    _ => {
+                        (StatusCode::INTERNAL_SERVER_ERROR, "Something went wrong").into_response()
+                    }
+                }
+            }
         }
     }
+}
+
+use crate::utils::header_utils::DEFAULT_NAMESPACE;
+
+fn default_namespace() -> String {
+    DEFAULT_NAMESPACE.to_string()
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct GetRequest {
     pub key: String,
+    #[serde(default = "default_namespace")]
+    pub namespace: String,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct PutRequest {
     pub key: String,
     pub data: String,
+    #[serde(default = "default_namespace")]
+    pub namespace: String,
 }
 
 pub async fn get(
     State(state): State<Arc<AppState>>,
     Json(request): Json<GetRequest>,
 ) -> Result<Response, CacheAsideError> {
-    debug!("cache_aside::GET request received");
+    debug!(
+        "cache_aside::GET request received for namespace: {}",
+        request.namespace
+    );
+
+    // Get cache for namespace
+    let cache = state.get_cache(&request.namespace)?;
+
     let embedding = state.embedding_service.embed(&request.key)?;
-    let saved_response = state.cache.get_if_present(&embedding)?;
+    let saved_response = cache.get_if_present(&embedding)?;
     let http_response = match saved_response {
         Some(response_bytes) => (StatusCode::OK, response_bytes).into_response(),
         None => (StatusCode::NOT_FOUND).into_response(),
@@ -61,13 +95,20 @@ pub async fn put(
     State(state): State<Arc<AppState>>,
     Json(request): Json<PutRequest>,
 ) -> Result<Response, CacheAsideError> {
-    debug!("cache_aside::PUT request received");
+    debug!(
+        "cache_aside::PUT request received for namespace: {}",
+        request.namespace
+    );
+
+    // Get cache for namespace
+    let cache = state.get_cache(&request.namespace)?;
+
     let body: Vec<u8> = request.data.into_bytes();
     let embedding = state.embedding_service.embed(&request.key)?;
     // if we already have an entry associated with the prompt, update it
-    let updated_existing_entry = state.cache.try_update(&embedding, body.clone())?;
+    let updated_existing_entry = cache.try_update(&embedding, body.clone())?;
     if !updated_existing_entry {
-        state.cache.insert(embedding, body)?;
+        cache.insert(embedding, body)?;
     }
     Ok((StatusCode::OK).into_response())
 }
@@ -113,14 +154,15 @@ mod tests {
         mock_client.expect_post_http_request().times(0);
 
         // put mocked objects into the appstate
-        let app_state = Arc::new(AppState {
-            embedding_service: Box::new(mock_embed),
-            cache: Box::new(mock_cache),
-            http_client: Box::new(mock_client),
-        });
+        let app_state = Arc::new(AppState::new_with_cache_for_test(
+            Box::new(mock_client),
+            Box::new(mock_embed),
+            Box::new(mock_cache),
+        ));
 
         let request_body = GetRequest {
             key: String::from(prompt),
+            namespace: "default".to_string(),
         };
 
         // when
@@ -155,14 +197,15 @@ mod tests {
         mock_client.expect_post_http_request().times(0);
 
         // put mocked objects into the appstate
-        let app_state = Arc::new(AppState {
-            embedding_service: Box::new(mock_embed),
-            cache: Box::new(mock_cache),
-            http_client: Box::new(mock_client),
-        });
+        let app_state = Arc::new(AppState::new_with_cache_for_test(
+            Box::new(mock_client),
+            Box::new(mock_embed),
+            Box::new(mock_cache),
+        ));
 
         let request_body = GetRequest {
             key: String::from(prompt),
+            namespace: "default".to_string(),
         };
 
         // when
@@ -204,14 +247,15 @@ mod tests {
         mock_client.expect_post_http_request().times(0);
 
         // put mocked objects into the appstate
-        let app_state = Arc::new(AppState {
-            embedding_service: Box::new(mock_embed),
-            cache: Box::new(mock_cache),
-            http_client: Box::new(mock_client),
-        });
+        let app_state = Arc::new(AppState::new_with_cache_for_test(
+            Box::new(mock_client),
+            Box::new(mock_embed),
+            Box::new(mock_cache),
+        ));
 
         let request_body = GetRequest {
             key: String::from(prompt),
+            namespace: "default".to_string(),
         };
 
         // when
@@ -251,14 +295,15 @@ mod tests {
         mock_client.expect_post_http_request().times(0);
 
         // put mocked objects into the appstate
-        let app_state = Arc::new(AppState {
-            embedding_service: Box::new(mock_embed),
-            cache: Box::new(mock_cache),
-            http_client: Box::new(mock_client),
-        });
+        let app_state = Arc::new(AppState::new_with_cache_for_test(
+            Box::new(mock_client),
+            Box::new(mock_embed),
+            Box::new(mock_cache),
+        ));
 
         let request_body = GetRequest {
             key: String::from(prompt),
+            namespace: "default".to_string(),
         };
 
         // when
@@ -297,15 +342,16 @@ mod tests {
         mock_client.expect_post_http_request().times(0);
 
         // put mocked objects into the appstate
-        let app_state = Arc::new(AppState {
-            embedding_service: Box::new(mock_embed),
-            cache: Box::new(mock_cache),
-            http_client: Box::new(mock_client),
-        });
+        let app_state = Arc::new(AppState::new_with_cache_for_test(
+            Box::new(mock_client),
+            Box::new(mock_embed),
+            Box::new(mock_cache),
+        ));
 
         let request_body = PutRequest {
             key: String::from(prompt),
             data: String::from(body),
+            namespace: "default".to_string(),
         };
 
         // when
@@ -342,15 +388,16 @@ mod tests {
         mock_client.expect_post_http_request().times(0);
 
         // put mocked objects into the appstate
-        let app_state = Arc::new(AppState {
-            embedding_service: Box::new(mock_embed),
-            cache: Box::new(mock_cache),
-            http_client: Box::new(mock_client),
-        });
+        let app_state = Arc::new(AppState::new_with_cache_for_test(
+            Box::new(mock_client),
+            Box::new(mock_embed),
+            Box::new(mock_cache),
+        ));
 
         let request_body = PutRequest {
             key: String::from(prompt),
             data: String::from(body),
+            namespace: "default".to_string(),
         };
 
         // when
@@ -386,15 +433,16 @@ mod tests {
         mock_client.expect_post_http_request().times(0);
 
         // put mocked objects into the appstate
-        let app_state = Arc::new(AppState {
-            embedding_service: Box::new(mock_embed),
-            cache: Box::new(mock_cache),
-            http_client: Box::new(mock_client),
-        });
+        let app_state = Arc::new(AppState::new_with_cache_for_test(
+            Box::new(mock_client),
+            Box::new(mock_embed),
+            Box::new(mock_cache),
+        ));
 
         let request_body = PutRequest {
             key: String::from(prompt),
             data: String::from(body),
+            namespace: "default".to_string(),
         };
 
         // when
@@ -438,15 +486,16 @@ mod tests {
         mock_client.expect_post_http_request().times(0);
 
         // put mocked objects into the appstate
-        let app_state = Arc::new(AppState {
-            embedding_service: Box::new(mock_embed),
-            cache: Box::new(mock_cache),
-            http_client: Box::new(mock_client),
-        });
+        let app_state = Arc::new(AppState::new_with_cache_for_test(
+            Box::new(mock_client),
+            Box::new(mock_embed),
+            Box::new(mock_cache),
+        ));
 
         let request_body = PutRequest {
             key: String::from(prompt),
             data,
+            namespace: "default".to_string(),
         };
 
         // when
@@ -456,5 +505,118 @@ mod tests {
 
         // then
         assert_eq!(result.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn namespace_isolation_put_and_get() {
+        use crate::cache::cache_impl::EvictionPolicy;
+
+        // Create real AppState (not mocked) to test namespace isolation
+        let app_state = Arc::new(AppState::new(0.9, EvictionPolicy::EntryLimit(100)));
+
+        let key = "What is the capital of France?";
+
+        // Put different values in different namespaces
+        let put_ns1 = PutRequest {
+            key: key.to_string(),
+            data: "Paris for namespace 1".to_string(),
+            namespace: "namespace-1".to_string(),
+        };
+        put(State(app_state.clone()), axum::Json(put_ns1))
+            .await
+            .unwrap();
+
+        let put_ns2 = PutRequest {
+            key: key.to_string(),
+            data: "Paris for namespace 2".to_string(),
+            namespace: "namespace-2".to_string(),
+        };
+        put(State(app_state.clone()), axum::Json(put_ns2))
+            .await
+            .unwrap();
+
+        // Get from namespace-1 should return namespace-1's value
+        let get_ns1 = GetRequest {
+            key: key.to_string(),
+            namespace: "namespace-1".to_string(),
+        };
+        let result_ns1 = get(State(app_state.clone()), axum::Json(get_ns1))
+            .await
+            .unwrap();
+        assert_eq!(result_ns1.status(), StatusCode::OK);
+        let body_ns1 = axum::body::to_bytes(result_ns1.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        assert_eq!(body_ns1, "Paris for namespace 1".as_bytes());
+
+        // Get from namespace-2 should return namespace-2's value
+        let get_ns2 = GetRequest {
+            key: key.to_string(),
+            namespace: "namespace-2".to_string(),
+        };
+        let result_ns2 = get(State(app_state.clone()), axum::Json(get_ns2))
+            .await
+            .unwrap();
+        assert_eq!(result_ns2.status(), StatusCode::OK);
+        let body_ns2 = axum::body::to_bytes(result_ns2.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        assert_eq!(body_ns2, "Paris for namespace 2".as_bytes());
+    }
+
+    #[tokio::test]
+    async fn namespace_not_found_in_different_namespace() {
+        use crate::cache::cache_impl::EvictionPolicy;
+
+        let app_state = Arc::new(AppState::new(0.9, EvictionPolicy::EntryLimit(100)));
+
+        // Put in namespace-1
+        let put_req = PutRequest {
+            key: "test key".to_string(),
+            data: "test value".to_string(),
+            namespace: "namespace-1".to_string(),
+        };
+        put(State(app_state.clone()), axum::Json(put_req))
+            .await
+            .unwrap();
+
+        // Try to get from namespace-2 (should not find it)
+        let get_req = GetRequest {
+            key: "test key".to_string(),
+            namespace: "namespace-2".to_string(),
+        };
+        let result = get(State(app_state), axum::Json(get_req)).await.unwrap();
+        assert_eq!(result.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn invalid_namespace_returns_error() {
+        use crate::cache::cache_impl::EvictionPolicy;
+
+        let app_state = Arc::new(AppState::new(0.9, EvictionPolicy::EntryLimit(100)));
+
+        // Empty namespace
+        let get_req = GetRequest {
+            key: "test".to_string(),
+            namespace: "".to_string(),
+        };
+        let result = get(State(app_state.clone()), axum::Json(get_req)).await;
+        assert!(result.is_err());
+
+        // Invalid characters
+        let get_req = GetRequest {
+            key: "test".to_string(),
+            namespace: "test@namespace".to_string(),
+        };
+        let result = get(State(app_state.clone()), axum::Json(get_req)).await;
+        assert!(result.is_err());
+
+        // Too long
+        let get_req = GetRequest {
+            key: "test".to_string(),
+            namespace: "a".repeat(65),
+        };
+        let result = get(State(app_state), axum::Json(get_req)).await;
+        assert!(result.is_err());
     }
 }

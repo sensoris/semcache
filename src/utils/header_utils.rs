@@ -6,6 +6,7 @@ use axum::http::{HeaderMap, HeaderName};
 pub static PROXY_UPSTREAM_HOST_HEADER: HeaderName = HeaderName::from_static("x-llm-proxy-host");
 pub static PROXY_UPSTREAM_HEADER: HeaderName = HeaderName::from_static("x-llm-proxy-upstream");
 pub static PROXY_PROMPT_LOCATION_HEADER: HeaderName = HeaderName::from_static("x-llm-prompt");
+pub static NAMESPACE_HEADER: HeaderName = HeaderName::from_static("x-semcache-namespace");
 pub static HOP_HEADERS: LazyLock<[HeaderName; 12]> = LazyLock::new(|| {
     [
         HeaderName::from_static("connection"),
@@ -24,6 +25,9 @@ pub static HOP_HEADERS: LazyLock<[HeaderName; 12]> = LazyLock::new(|| {
     ]
 });
 
+// CONSTANTS
+pub const DEFAULT_NAMESPACE: &str = "default";
+
 pub fn remove_hop_headers(headers: &mut HeaderMap) {
     for header in &*HOP_HEADERS {
         headers.remove(header);
@@ -38,6 +42,15 @@ pub fn prepare_upstream_headers(headers: HeaderMap) -> HeaderMap {
     // remove semcache headers
     upstream_headers.remove(&PROXY_UPSTREAM_HEADER);
     upstream_headers.remove(&PROXY_PROMPT_LOCATION_HEADER);
+    upstream_headers.remove(&NAMESPACE_HEADER);
 
     upstream_headers
+}
+
+pub fn extract_namespace(headers: &HeaderMap) -> String {
+    headers
+        .get(&NAMESPACE_HEADER)
+        .and_then(|h| h.to_str().ok())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| DEFAULT_NAMESPACE.to_string())
 }
