@@ -195,3 +195,4 @@ Interested in contributing? Contributions to Semcache are welcome! Feel free to 
 ---
 
 Built with ❤️ in Rust • [Documentation](https://docs.semcache.io) • [GitHub Issues](https://github.com/sensoris/semcache/issues)
+
